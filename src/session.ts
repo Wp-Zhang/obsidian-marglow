@@ -11,6 +11,8 @@ export interface SessionCallbacks {
   reassociate(selection: CapturedSelection): Promise<void>;
   cancelReassociation(): void;
   onUiClosed(): void;
+  openComments(session: AnnotationSession): void;
+  closeComments(): void;
 }
 
 export class AnnotationSession {
@@ -38,7 +40,6 @@ export class AnnotationSession {
   private pointerActive = false;
   private sidebar: AnnotationSidebar;
   private sidebarButton: HTMLButtonElement;
-  private pane: HTMLElement;
   private activeId: string | null = null;
   private hoveredId: string | null = null;
   private preview: Annotation | null = null;
@@ -76,19 +77,14 @@ export class AnnotationSession {
     this.pageComment.textContent = "Comment";
     this.pageComment.addEventListener("click", () => this.chooseTool("comment"));
     this.tools.append(this.pageHighlight, this.pageComment);
-    this.pane = root.parentElement!;
-    this.pane.classList.add("marglow-pane");
-    this.sidebar = new AnnotationSidebar(document, () => this.toggleSidebar(false), (annotation, edit) => { void this.selectFromSidebar(annotation, edit); }, id => this.emphasize(this.activeId, id));
+    this.sidebar = new AnnotationSidebar(document, callbacks.closeComments, (annotation, edit) => { void this.selectFromSidebar(annotation, edit); }, id => this.emphasize(this.activeId, id));
     this.ui.navigationContainer = this.sidebar.element;
     this.sidebar.element.classList.toggle("marglow-mobile", mobile);
-    this.sidebar.element.hidden = mobile || this.pane.clientWidth < 850;
-    this.pane.append(this.sidebar.element);
     this.sidebarButton = document.createElement("button");
     this.sidebarButton.type = "button";
     this.sidebarButton.textContent = "Comments";
-    this.sidebarButton.addEventListener("click", () => this.toggleSidebar(!!this.sidebar.element.hidden));
+    this.sidebarButton.addEventListener("click", () => callbacks.openComments(this));
     this.tools.append(this.sidebarButton);
-    this.updateSidebarLayout();
     this.notesButton = document.createElement("button");
     this.notesButton.textContent = "Reading notes";
     this.notesButton.addEventListener("click", () => { void callbacks.openNote(source).catch(error => callbacks.report(String(error))); });
@@ -266,7 +262,6 @@ export class AnnotationSession {
   private render(): void {
     if (this.disposed || this.suspended || this.error) return;
     const root = this.adapter.root;
-    this.updateSidebarLayout();
     this.adapter.refreshLayout();
     const box = root.getBoundingClientRect();
     const nodes: HTMLElement[] = [];
@@ -319,20 +314,7 @@ export class AnnotationSession {
     this.sidebar.emphasize(active, hovered, reveal);
   }
 
-  private toggleSidebar(open: boolean): void {
-    this.sidebar.element.hidden = !open;
-    this.updateSidebarLayout();
-    this.scheduleRender();
-    this.sidebar.emphasize(this.activeId, this.hoveredId, open);
-  }
-
-  private updateSidebarLayout(): void {
-    const open = !this.sidebar.element.hidden;
-    this.pane.classList.toggle("marglow-sidebar-open", open);
-    this.pane.classList.toggle("marglow-sidebar-docked", open && this.pane.clientWidth >= 850);
-    this.sidebarButton.setAttribute("aria-expanded", String(open));
-    this.sidebar.element.style.top = `${this.adapter.root.offsetTop}px`;
-  }
+  get sidebarElement(): HTMLElement { return this.sidebar.element; }
 
   private async selectFromSidebar(annotation: Annotation, edit: boolean): Promise<void> {
     if (!await this.ui.finish() || this.disposed || this.suspended || this.error) return;
@@ -363,7 +345,6 @@ export class AnnotationSession {
     this.overlay.remove();
     this.tools.remove();
     this.sidebar.dispose();
-    this.pane.classList.remove("marglow-pane", "marglow-sidebar-open", "marglow-sidebar-docked");
     this.adapter.root.classList.remove("marglow-source");
     this.adapter.dispose();
   }

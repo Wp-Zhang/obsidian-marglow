@@ -8,14 +8,14 @@ The name combines **margin** and **glow**.
 
 ## Status
 
-**0.1.2 is an initial development build**, not a Community Plugins release. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
+**0.1.3 is an initial development build**, not a Community Plugins release. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
 
 A persistent page toolbar offers color selection, Highlight mode, Comment, and Reading notes. Choose a color before selecting text; activate Highlight to mark subsequent selections, or Comment to write on the next selection. Click the active tool again to turn it off. Floating selection tools remain available.
 
 ## Features
 
 - Selected annotations have a distinct solid outline; hovering uses a lighter dashed outline.
-- A per-document **Comments** sidebar with quotes, comments, bidirectional hover, click-to-jump, and comment editing. Wide panes dock the sidebar; narrow panes and mobile use a collapsible overlay.
+- A per-document **Comments** sidebar with quotes, comments, bidirectional hover, click-to-jump, and comment editing. Comments opens as a native Obsidian right-sidebar tab beside Outline and Backlinks, and follows the active Markdown/PDF document. Obsidian controls its sizing and mobile drawer.
 - Four highlight colors and a lightweight comment composer, directly beside a text selection.
 - Markdown **Reading view**, including selections across formatting and paragraphs.
 - Text-selectable PDFs, with multiple page segments under one annotation and highlights that follow zoom and rotation.
@@ -71,6 +71,7 @@ All command names have the `Marglow:` prefix in the command palette.
 
 | Command | Purpose |
 | --- | --- |
+| Open comments sidebar | Open the native Marglow comments tab |
 | Open reading notes | Open the companion note for the current source |
 | Open source document | Open the source referenced by the current reading note |
 | Reassociate an annotation | Choose an entry, select replacement text in its source, then press Reassociate |

@@ -164,16 +164,10 @@ try {
   assert.ok((await noteText()).includes(`^${ids[0]}`));
   await page.evaluate(async () => app.vault.process(app.vault.getFileByPath("Smoke.md.annotations.md"), text => text.replace("Sidebar edit.", "Direct edit.")));
   await page.waitForFunction(() => document.querySelector('.marglow-sidebar')?.textContent.includes("Direct edit."));
-  await page.setViewportSize({ width: 1700, height: 1000 });
-  await page.waitForFunction(() => {
-    const source = document.querySelector('.marglow-source').getBoundingClientRect(), sidebar = document.querySelector('.marglow-sidebar').getBoundingClientRect();
-    return document.querySelector('.marglow-sidebar-docked') && source.right <= sidebar.left + 1;
-  });
+  assert.equal(await page.evaluate(() => app.workspace.getLeavesOfType('marglow-comments').length), 1);
+  assert.equal(await sidebar.evaluate(element => !!element.closest('.mod-right-split')), true);
+  assert.equal(await page.locator('.marglow-sidebar-docked, .marglow-pane').count(), 0);
   await page.screenshot({ path: `${output}/comments-sidebar.png` });
-  await page.setViewportSize({ width: 650, height: 800 });
-  await page.waitForFunction(() => !document.querySelector('.marglow-sidebar-docked'));
-  assert.ok(await sidebar.getByRole("button", { name: "Close", exact: true }).isVisible());
-  await page.setViewportSize({ width: 1100, height: 900 });
   await sidebar.getByRole("button", { name: "Close", exact: true }).click();
   passed("Markdown selected outline, bidirectional hover, sidebar navigation/edit and external update");
 
@@ -250,10 +244,24 @@ try {
   await page.screenshot({ path: `${output}/pdf-comments-sidebar.png` });
   await sidebar.getByRole("button", { name: "Close", exact: true }).click();
   passed("PDF sidebar navigation and cross-page selection/hover emphasis");
-  await page.evaluate(() => { app.workspace.activeLeaf.view.viewer.child.pdfViewer.pdfViewer.currentScale = 1.25; });
+  await pageTools.getByRole("button", { name: "Comments", exact: true }).click();
+  await page.evaluate(async () => app.workspace.getLeaf("tab").openFile(app.vault.getFileByPath("Renamed.md"), { state: { mode: "preview" } }));
+  await page.waitForFunction(() => document.querySelector('.marglow-comments-source')?.textContent === "Renamed.md");
+  assert.ok(await sidebar.locator('.marglow-comment-card').filter({ hasText: "Comment from the page toolbar." }).count());
+  await page.evaluate(() => app.workspace.revealLeaf(app.workspace.getLeavesOfType("marglow-comments")[0]));
+  await page.waitForFunction(() => document.querySelector('.marglow-comments-source')?.textContent === "Renamed.md");
+  await page.evaluate(() => app.workspace.setActiveLeaf(app.workspace.getLeavesOfType("pdf")[0], { focus: true }));
+  await page.waitForFunction(() => document.querySelector('.marglow-comments-source')?.textContent === "Smoke.pdf");
+  assert.equal(await sidebar.locator('.marglow-comment-card').count(), 1);
+  await sidebar.getByRole("button", { name: "Close", exact: true }).click();
+  await page.evaluate(() => app.workspace.getLeavesOfType("markdown").filter(leaf => leaf.view.file?.path === "Renamed.md").forEach(leaf => leaf.detach()));
+  await highlightCount(3);
+  passed("Native right-sidebar tab follows source switches and retains association on focus");
+
+  await page.evaluate(() => { app.workspace.getLeavesOfType("pdf")[0].view.viewer.child.pdfViewer.pdfViewer.currentScale = 1.25; });
   await page.waitForFunction(geometryMatches);
-  await page.evaluate(() => { app.workspace.activeLeaf.view.viewer.child.pdfViewer.pdfViewer.pagesRotation = 90; });
-  await page.waitForFunction(() => app.workspace.activeLeaf.view.viewer.child.pdfViewer.pdfViewer.getPageView(0).viewport.rotation === 90);
+  await page.evaluate(() => { app.workspace.getLeavesOfType("pdf")[0].view.viewer.child.pdfViewer.pdfViewer.pagesRotation = 90; });
+  await page.waitForFunction(() => app.workspace.getLeavesOfType("pdf")[0].view.viewer.child.pdfViewer.pdfViewer.getPageView(0).viewport.rotation === 90);
   await page.waitForFunction(geometryMatches);
   await page.screenshot({ path: `${output}/pdf-rotated.png` });
   passed("PDF zoom and rotation geometry");
@@ -261,6 +269,7 @@ try {
   await page.evaluate(async () => { await app.plugins.disablePlugin("marglow"); });
   assert.equal(await page.locator(".marglow-overlay").count(), 0);
   assert.equal(await page.locator(".marglow-sidebar").count(), 0);
+  assert.equal(await page.evaluate(() => app.workspace.getLeavesOfType("marglow-comments").length), 0);
   await page.evaluate(async () => { await app.plugins.enablePlugin("marglow"); });
   await highlightCount(3);
   await page.waitForFunction(geometryMatches);

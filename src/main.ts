@@ -4,6 +4,7 @@ import { isReadingNote, parseReadingNote, type Entry } from "./format";
 import { MarkdownAdapter } from "./markdown-adapter";
 import { PdfAdapter } from "./pdf-adapter";
 import { AnnotationSession, type SessionCallbacks } from "./session";
+import { CommentsView, COMMENTS_VIEW } from "./comments-view";
 import type { Source } from "./model";
 
 interface Mounted {
@@ -33,6 +34,7 @@ class SourcePicker extends FuzzySuggestModal<TFile> {
 }
 
 export default class MarglowPlugin extends Plugin {
+  private commentsSource: View | null = null;
   private store!: AnnotationStore;
   private mounted = new Map<View, Mounted>();
   private reconcileTimer: ReturnType<typeof setTimeout> | undefined;
@@ -46,6 +48,8 @@ export default class MarglowPlugin extends Plugin {
 
   onload(): void {
     this.store = new AnnotationStore(this.app);
+    this.registerView(COMMENTS_VIEW, leaf => new CommentsView(leaf));
+    this.addCommand({ id: "open-comments", name: "Open comments sidebar", callback: () => { void this.openComments().catch(error => this.report(String(error))); } });
     const schedule = () => this.schedule();
     this.registerEvent(this.app.workspace.on("layout-change", schedule));
     this.registerEvent(this.app.workspace.on("active-leaf-change", schedule));
@@ -134,6 +138,8 @@ export default class MarglowPlugin extends Plugin {
           }
           if (this.stopped || epoch !== this.epoch || !candidate.root.isConnected) { this.removeChild(owner); continue; }
           const callbacks: SessionCallbacks = {
+            openComments: session => { void this.openComments(session).catch(error => this.report(String(error))); },
+            closeComments: () => this.closeComments(),
             report: message => this.report(message),
             openNote: source => this.openNote(source),
             cancelReassociation: () => { this.pending = null; },
@@ -155,10 +161,42 @@ export default class MarglowPlugin extends Plugin {
           this.report(error instanceof Error ? error.message : String(error));
         }
       }
+      this.syncComments();
     } finally {
       this.running = false;
       if (this.rerun || epoch !== this.epoch) { this.rerun = false; this.schedule(); }
     }
+  }
+
+  private syncComments(): void {
+    const active = this.app.workspace.activeLeaf?.view;
+    // Focusing the comments tab must retain its source document association.
+    const root = this.app.workspace.activeLeaf?.getRoot();
+    if (active?.getViewType() !== COMMENTS_VIEW && root !== this.app.workspace.rightSplit && root !== this.app.workspace.leftSplit) this.commentsSource = active ?? null;
+    const session = this.commentsSource ? this.mounted.get(this.commentsSource)?.session ?? null : null;
+    for (const leaf of this.app.workspace.getLeavesOfType(COMMENTS_VIEW)) {
+      if (leaf.view instanceof CommentsView) leaf.view.setSession(session);
+    }
+  }
+
+  private closeComments(): void {
+    const sourceLeaf = this.commentsSource?.leaf;
+    this.app.workspace.detachLeavesOfType(COMMENTS_VIEW);
+    if (sourceLeaf) this.app.workspace.setActiveLeaf(sourceLeaf, { focus: true });
+  }
+
+  private async openComments(session?: AnnotationSession): Promise<void> {
+    const active = this.app.workspace.activeLeaf?.view;
+    const target = session ?? (active?.getViewType() === COMMENTS_VIEW ? (this.commentsSource ? this.mounted.get(this.commentsSource)?.session : undefined) : (active ? this.mounted.get(active)?.session : undefined));
+    if (target) this.commentsSource = [...this.mounted].find(([, mounted]) => mounted.session === target)?.[0] ?? null;
+    const existing = this.app.workspace.getLeavesOfType(COMMENTS_VIEW)[0];
+    const leaf = existing ?? this.app.workspace.getRightLeaf(false);
+    if (!leaf) return;
+    if (!existing) await leaf.setViewState({ type: COMMENTS_VIEW, active: true });
+    if (leaf.view instanceof CommentsView) {
+      leaf.view.setSession(target ?? null);
+    }
+    await this.app.workspace.revealLeaf(leaf);
   }
 
   private async sourceForCurrentFile(): Promise<Source | null> {
@@ -223,5 +261,6 @@ export default class MarglowPlugin extends Plugin {
     clearTimeout(this.reconcileTimer);
     for (const mounted of this.mounted.values()) { mounted.session.ui.close(); mounted.session.dispose(); }
     this.mounted.clear();
+    this.app.workspace.detachLeavesOfType(COMMENTS_VIEW);
   }
 }

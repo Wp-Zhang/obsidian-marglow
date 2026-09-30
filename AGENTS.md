@@ -22,7 +22,7 @@ Marglow is an Obsidian plugin for highlighting and commenting on Markdown and PD
 - Save comments when users click or tap outside the composer. Provide visible save and cancel controls on iOS; support `Cmd + Enter` and `Esc` on Mac. Keep unsaved input when persistence fails.
 - Reflect direct comment edits in the companion note. Deleting a complete annotation entry removes its highlight; clearing only its comment preserves the highlight.
 - Preserve unlocated annotations and support manual reassociation without changing their IDs. Do not guess an ambiguous location.
-- Distinguish selected annotations from hovered and idle annotations. Keep the per-document Comments sidebar linked to Markdown/PDF highlights, with safe navigation, editing, and retained unlocated entries. Collapse it in narrow panes rather than squeezing the reader.
+- Distinguish selected annotations from hovered and idle annotations. Keep the per-document Comments sidebar linked to Markdown/PDF highlights, with safe navigation, editing, and retained unlocated entries. Use a native Obsidian right-sidebar view; let the host manage docking and mobile drawers instead of placing an overlay inside the document.
 - Use stable native block references in the companion reading note. Dedicated Copy link and Copy quote actions remain future work.
 
 ## Architecture and Data Integrity
