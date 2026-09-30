@@ -1,6 +1,6 @@
 # Community submission preparation
 
-Prepared on 2026-09-30 for **0.2.0 — Public beta 1**. This document does not assert acceptance into the community directory.
+Prepared on 2026-09-30; updated for **0.2.1 — Public beta 2**. This document does not assert acceptance into the community directory.
 
 ## Submission details
 
@@ -11,11 +11,11 @@ Prepared on 2026-09-30 for **0.2.0 — Public beta 1**. This document does not a
 | Name | Marglow |
 | Author | Weipeng Zhang |
 | Description | Highlight and comment on Markdown and PDF, with editable local Markdown reading notes. |
-| Release tag / manifest version | `0.2.0` |
+| Release tag / manifest version | `0.2.1` |
 | Minimum app version | `1.8.10` |
 | Desktop only | false; physical iOS acceptance remains pending |
 | License | MIT |
-| Release | https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.0 |
+| Release | https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.1 |
 
 The current official process is the [Obsidian Community directory submission flow](https://docs.obsidian.md/Plugins/Releasing/Submit%20your%20plugin). It requires an Obsidian account, linked GitHub account, repository ownership verification, and the author's agreement to developer policies and continued maintenance. No community submission or policy agreement has been made by this preparation task.
 
@@ -31,10 +31,10 @@ The current official process is the [Obsidian Community directory submission flo
 
 ## Verification and review notes
 
-- Type check passed; 70 automated tests passed.
-- 26 checks passed in actual Obsidian 1.8.10 using an isolated Mac test Vault, including source-byte preservation and reload cleanup.
+- Type check passed; 74 automated tests passed.
+- 28 checks passed in actual Obsidian 1.8.10 using an isolated Mac test Vault, including source-byte preservation and reload cleanup.
 - Release metadata, built files, archive, and absence of Node/Electron runtime dependencies validated by `npm run verify:release`.
-- Official `eslint-plugin-obsidianmd` recommended configuration: **0 errors, 45 warnings**. Warnings consist of 37 preferences for Obsidian DOM helpers, five deprecated API references, two sentence-case suggestions, and one inert-template HTML assignment. They remain visible in `npm run lint`; they are not presented as scanner approval.
+- Official `eslint-plugin-obsidianmd` recommended configuration: **0 errors, 46 warnings**. Warnings consist of 38 preferences for Obsidian DOM helpers, five deprecated API references, two sentence-case suggestions, and one inert-template HTML assignment. They remain visible in `npm run lint`; they are not presented as scanner approval.
 - UI uses owner-document browser DOM creation to preserve document/window ownership and keep isolated tests independent of host DOM extensions.
 - Virtual Markdown section HTML is read into an inert template only, never mounted or executed. A narrowly explained `no-unsanitized/property` exception covers this native-viewer index; the official HTML advisory remains visible for review. Icon creation uses explicit SVG DOM nodes.
 - PDF and Markdown virtual-section dependencies are isolated in their adapters. Changes in the host can require adaptation. No OCR or editor-mode annotation support is claimed.
@@ -59,3 +59,7 @@ No legacy `obsidian-releases` pull request is prepared: the current official sub
 3. Commit and push; tag that exact commit with the numeric manifest version (no `v` prefix).
 4. Attach the three built plugin files separately to a GitHub release with that tag, optionally adding the ZIP. Mark beta releases as prereleases.
 5. Download the published files and compare their hashes with the locally verified build.
+
+## 0.2.1 mobile follow-up
+
+A phone toolbar inset issue and cross-device PDF geometry issue reported by the user were addressed. Desktop 1.13.7 native mobile emulation and Playwright WebKit 26.6 checks passed. A copied problematic PDF and reading note were tested without changing their bytes. Physical iOS retesting remains pending. The latest public beta is 0.2.1; physical iOS retesting remains pending.

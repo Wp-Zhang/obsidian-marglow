@@ -5,10 +5,23 @@ Use a dedicated Vault with synthetic Markdown and PDF material. Never run these 
 ## Current verification
 
 - Automated checks cover Markdown round trips, direct edits, deletion, local-update preservation, stale-write rejection, malformed files, duplicate IDs, source association, text anchoring, PDF page transforms, cross-page selection, and composer persistence failures.
-- Mac smoke checks use actual Obsidian 1.8.10 with a private test profile. The 26 checks exercise visible round color swatches in light/dark themes, persistent page tools, active/hover distinction, native right-sidebar tabs with the Marglow line icon, document switching and focus association, Markdown/PDF persistence, source updates, per-frame PDF scroll alignment, zoom/rotation geometry, plugin reloads, and nonduplicated highlight/underline geometry across italic, linked, and nested styled text.
+- Mac smoke checks use actual Obsidian 1.8.10 with a private test profile. The 28 checks exercise visible round color swatches in light/dark themes, persistent page tools, active/hover distinction, native right-sidebar tabs with the Marglow line icon, document switching and focus association, Markdown/PDF persistence, source updates, per-frame PDF scroll alignment, zoom/rotation geometry, plugin reloads, and nonduplicated highlight/underline geometry across italic, linked, and nested styled text.
 - iOS physical-device selection, native menus, keyboard placement, and reopening remain unverified until the checklist below is run on a device. A desktop viewport or DOM test is not an iOS acceptance test.
 
 Run `npm run check`, `npm run package`, and, on Mac, `npm run smoke:mac`. The smoke script creates isolated fixtures and checks source-byte preservation before it exits. Inspect its screenshots in the printed local output directory.
+
+## Mobile emulation and browser checks
+
+The scripts verify the isolated Vault identity and that its only installed plugin matches the current built Marglow files, then automatically approve the known English/Chinese author-trust prompt. Approval occurs before waiting for workspace layout readiness, including after an emulation reload. They do not change trust settings in personal Vaults or globally.
+
+For mobile changes, use both layers before requesting a physical-device retest:
+
+1. `npm run smoke:mobile` creates an isolated Vault and enables native `app.emulateMobile(true)`. To use an installed updated Obsidian runtime, set `OBSIDIAN_ASAR` to its cached versioned ASAR file; it is copied into the test profile, never modified. Record the app version printed by the script. Version 1.13.7 was checked for this fix.
+2. Install the WebKit test engine with `npx playwright install webkit`, then run `npm run smoke:webkit`. This checks navigation insets, touch event delivery, PDF partial-selection capture, cross-scale rendering and page clipping at a phone viewport. Engine 26.6 was checked for this fix.
+3. The WebKit script saves a standalone `safari-fixture.html` under its ignored output directory for a native Safari check. The attempted native Safari launch in this session timed out; it is not recorded as a pass.
+4. Physical iOS still needs retesting, especially native selection handles, pinch gestures, floating navigation, keyboard changes and saved annotations reopened on another device. Desktop emulation and Playwright WebKit are not physical iOS acceptance.
+
+For an existing problematic document, optional `OBSIDIAN_TEST_PDF` and `OBSIDIAN_TEST_NOTE` inputs copy it into the isolated mobile test Vault. Source bytes and copied notes are checked unchanged; copied user material and resulting screenshots stay under ignored `dev/`.
 
 ## Mac and iOS device checks
 

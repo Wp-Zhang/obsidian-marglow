@@ -43,7 +43,7 @@
 .marglow-choices button { text-align: left; border-left: 4px solid var(--marglow-color); white-space: normal; }
 .marglow-error { margin: 4px 0; color: var(--text-error); max-width: 350px; }
 .marglow-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; }
-.marglow-highlight { position: absolute; background: var(--marglow-color); opacity: 0.32; pointer-events: none; border-radius: 2px; }
+.marglow-highlight { position: absolute; box-sizing: border-box; background: var(--marglow-color); opacity: 0.32; pointer-events: none; border-radius: 2px; }
 .marglow-highlight[data-comment="true"] { border-bottom: 2px solid var(--marglow-color); }
 .marglow-source { position: relative; }
 .marglow-file-tools { position: sticky; top: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 6px 10px; min-height: 44px; z-index: 5; background: var(--background-primary); border-bottom: 1px solid var(--background-modifier-border); }
@@ -78,6 +78,10 @@
 .marglow-reading-container { display: flex; flex-direction: column; padding: 0; }
 .marglow-reading-container > .marglow-file-tools { position: relative; top: 0; flex: 0 0 auto; margin: 0; }
 .marglow-reading-container > .markdown-preview-view { flex: 1 1 auto; min-height: 0; height: auto; }
+/* Phone Reading view reserves floating navigation/status space on its scroller.
+   Transfer that inset to the whole pane so the toolbar is below native controls. */
+.is-phone .marglow-reading-container { padding-top: var(--view-top-spacing-markdown, 0px); box-sizing: border-box; }
+.is-phone .mod-root .workspace-leaf-content .view-content .marglow-reading-container > .markdown-preview-view { padding-top: 0; }
 .marglow-ui button.marglow-comment-text { display: block; width: 100%; padding: 4px 0; height: auto; text-align: left; font: inherit; color: var(--text-normal); background: transparent; box-shadow: none; border: 0; border-radius: 3px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .marglow-ui button.marglow-comment-text:hover { background: var(--background-modifier-hover); }
 .marglow-comment-time { display: block; margin-top: 6px; color: var(--text-muted); font-size: var(--font-ui-smaller); }
@@ -90,6 +94,10 @@
 
 .marglow-file-tools > button[aria-label="Highlight"], .marglow-file-tools > button[aria-label="Underline"], .marglow-file-tools > button[aria-label="Comment"] { display: inline-flex; align-items: center; justify-content: center; width: 34px; padding: 6px; }
 .marglow-file-tools svg { width: 20px; height: 20px; }
+.marglow-file-tools.marglow-mobile { flex-wrap: nowrap; gap: 2px; padding-inline: 8px; overflow-x: auto; }
+.marglow-file-tools.marglow-mobile > button { flex: 0 0 44px; width: 44px; min-width: 44px; height: 44px; padding: 6px; }
+.marglow-file-tools.marglow-mobile .marglow-notes-button { display: inline-flex; align-items: center; justify-content: center; position: relative; }
+.marglow-notes-count { position: absolute; right: 1px; bottom: 1px; min-width: 14px; padding: 0 2px; border-radius: 7px; background: var(--background-primary); color: var(--text-normal); font-size: 10px; line-height: 14px; text-align: center; }
 .marglow-highlight.marglow-underline { background: transparent; border-bottom: 2px solid var(--marglow-color); opacity: 1; }
 .marglow-highlight.marglow-underline.is-active { box-shadow: none; }
 .marglow-composer.marglow-inline-composer { position: static; width: 100%; max-height: none; max-width: 100%; padding: 0; margin: 10px 0 8px; border: 0; border-radius: 0; background: transparent; box-shadow: none; z-index: auto; gap: 10px; }

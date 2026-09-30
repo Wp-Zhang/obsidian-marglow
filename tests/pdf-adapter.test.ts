@@ -29,7 +29,10 @@ function fixture(missingPage = 0) {
     const page = element.closest<HTMLElement>(".page")!;
     return [new DOMRect(20, Number(page.dataset.pageNumber) * 100 + 10, 50, 15)] as unknown as DOMRectList;
   }) });
-  Object.defineProperty(Range.prototype, "getBoundingClientRect", { configurable: true, value: vi.fn(() => new DOMRect(20, 110, 50, 215)) });
+  Object.defineProperty(Range.prototype, "getBoundingClientRect", { configurable: true, value: vi.fn(function(this: Range) {
+    if(this.startContainer===this.endContainer){const page=this.startContainer.parentElement!.closest('.page')!;return new DOMRect(20,Number((page as HTMLElement).dataset.pageNumber)*100+10,50,15);}
+    return new DOMRect(20,110,50,215);
+  }) });
   return { root, pages, adapter };
 }
 
@@ -43,6 +46,27 @@ function select(pages: ReturnType<typeof fixture>["pages"], first: number, last:
 }
 
 describe("PDF selection and geometry", () => {
+  it("displays a unique same-page quote from current text geometry without rewriting a bad saved anchor", () => {
+    const { adapter, pages } = fixture();
+    const captured = adapter.capture(select(pages, 1, 1))!;
+    if (captured.anchor.kind !== "pdf") throw new Error("Expected PDF anchor");
+    captured.anchor.segments[0]!.rects = [[0, 0, 100, 100]];
+    const before = JSON.stringify(captured.anchor);
+    const located = adapter.locate({ ...annotation(), quote: captured.quote, anchor: captured.anchor })!;
+    expect(located[0]!.toJSON()).toEqual(new DOMRect(20, 110, 50, 15).toJSON());
+    expect(JSON.stringify(captured.anchor)).toBe(before);
+  });
+
+  it("retains stored geometry when the same-page quotation is ambiguous", () => {
+    const { adapter, pages } = fixture();
+    const captured = adapter.capture(select(pages, 1, 1))!;
+    if (captured.anchor.kind !== "pdf") throw new Error("Expected PDF anchor");
+    const layer = pages[0]!.div.querySelector(".textLayer")!;
+    layer.append(document.createElement("br"), layer.querySelector("span")!.cloneNode(true));
+    captured.anchor.segments[0]!.rects = [[0, 0, 100, 100]];
+    const located = adapter.locate({ ...annotation(), quote: captured.quote, anchor: captured.anchor })!;
+    expect(located[0]!.width).toBe(100);
+  });
   it("round-trips page coordinates at a different display scale and page origin", () => {
     const viewport = { width: 100, height: 200, convertToPdfPoint: (x: number, y: number): [number, number] => [x, 200 - y], convertToViewportRectangle: (rect: number[]) => [rect[0]!, 200 - rect[1]!, rect[2]!, 200 - rect[3]!] };
     const box = new DOMRect(50, 80, 200, 400);

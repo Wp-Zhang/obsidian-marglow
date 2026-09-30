@@ -13,11 +13,15 @@ export class TextIndex {
   private points: Array<Point | null> = [];
   private characters: string[] = [];
 
-  constructor(readonly root: HTMLElement | DocumentFragment) {
-    const walker = root.ownerDocument.createTreeWalker(root, 4);
+  constructor(readonly root: HTMLElement | DocumentFragment, includeLineBreaks = false) {
+    const walker = root.ownerDocument.createTreeWalker(root, includeLineBreaks ? 5 : 4);
     let previousBlock: Element | null = null;
     let node: Node | null;
     while ((node = walker.nextNode())) {
+      if (node.nodeType === 1) {
+        if ((node as Element).tagName === "BR" && this.characters.length && this.characters.at(-1) !== " ") this.append(" ", null);
+        continue;
+      }
       const text = node as Text;
       if (!text.parentElement || text.parentElement.closest(EXCLUDED)) continue;
       const block = text.parentElement.closest(BLOCK);
@@ -58,7 +62,7 @@ export class TextIndex {
     return end > start ? { start, end } : null;
   }
 
-  rects(start: number, end: number): DOMRect[] {
+  rects(start: number, end: number, singleLine = false): DOMRect[] {
     const spans = new Map<Text, { start: number; end: number }>();
     for (const point of this.points.slice(start, end)) {
       if (!point) continue;
@@ -72,7 +76,7 @@ export class TextIndex {
       range.setStart(node, span.start); range.setEnd(node, span.end);
       // Whole-element ranges return both inline boxes and glyph boxes. Text-node
       // ranges only contribute selected text, including partial styled runs.
-      for (const rect of range.getClientRects()) {
+      for (const rect of singleLine ? [range.getBoundingClientRect()] : range.getClientRects()) {
         if (rect.width <= 0 || rect.height <= 0) continue;
         let merged = new DOMRect(rect.left, rect.top, rect.width, rect.height);
         for (let index = rects.length - 1; index >= 0; index--) {

@@ -47,6 +47,8 @@ The root README is English by default. Maintain its Chinese counterpart in `docs
 
 ## Verification
 
+For mobile changes, use Obsidian Desktop mobile emulation in an isolated Vault to verify host integration, and Safari/WebKit with an iOS-style touch viewport to verify browser layout, selection geometry, and input. Record the actual app/engine versions and distinguish emulation/browser checks from physical iOS acceptance. Use `npm run smoke:mobile` and `npm run smoke:webkit`; never test in a personal Vault.
+
 Verify the behavior affected by each change, especially persistence, source preservation, external file updates, selection geometry, and iOS interactions. Use a dedicated test Vault rather than a personal Vault. Add meaningful checks for data-sensitive behavior without creating tests that merely repeat the implementation.
 
 Before implementation, validate PDF selection and rendering behavior on Mac and iOS, Markdown Reading-view anchoring, and companion-note parsing and local updates. Keep build and test instructions truthful; do not invent commands before the toolchain exists.

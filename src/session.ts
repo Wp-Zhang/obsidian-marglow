@@ -4,6 +4,7 @@ import { AnnotationSidebar } from "./sidebar";
 import type { Entry } from "./format";
 import { AnnotationStore } from "./store";
 import { AnnotationUI, colorButton } from "./ui";
+import { overlayRect } from "./overlay-geometry";
 import { COLORS, createAnnotation, type Color, type Annotation, type CapturedSelection, type DocumentAdapter, type LocatedAnnotation, type Source } from "./model";
 
 export interface SessionCallbacks {
@@ -51,7 +52,7 @@ export class AnnotationSession {
   private navigation = 0;
   private unlocated = new Set<string>();
 
-  constructor(readonly source: Source, readonly adapter: DocumentAdapter, private store: AnnotationStore, mobile: boolean, private callbacks: SessionCallbacks) {
+  constructor(readonly source: Source, readonly adapter: DocumentAdapter, private store: AnnotationStore, private mobile: boolean, private callbacks: SessionCallbacks) {
     const root = adapter.root;
     const document = root.ownerDocument;
     this.ui = new AnnotationUI(document, mobile, callbacks.report, () => { this.scheduleRender(); callbacks.onUiClosed(); }, () => this.render());
@@ -93,6 +94,7 @@ export class AnnotationSession {
     this.ui.navigationContainer = this.sidebar.element;
     this.sidebar.element.classList.toggle("marglow-mobile", mobile);
     this.notesButton = document.createElement("button");
+    this.notesButton.className = "marglow-notes-button";
     this.notesButton.type = "button";
     this.notesButton.textContent = "Reading notes";
     this.notesButton.addEventListener("click", () => { void callbacks.openComments(this).catch(error => callbacks.report(String(error))); });
@@ -332,17 +334,17 @@ export class AnnotationSession {
       located.push({ annotation, rects });
       for (const rect of rects) {
         const host = this.adapter.overlayHost?.(rect) ?? root;
-        const box = host.getBoundingClientRect();
+        const local = overlayRect(rect, host);
         const nodes = layers.get(host) ?? [];
         layers.set(host, nodes);
         const element = root.ownerDocument.createElement("div");
         element.className = `marglow-highlight marglow-${annotation.color}${annotation.style === "underline" ? " marglow-underline" : ""}`;
         element.dataset.annotationId = annotation.id;
         element.dataset.comment = String(!!annotation.comment.trim());
-        element.style.left = `${rect.left - box.left - host.clientLeft + host.scrollLeft}px`;
-        element.style.top = `${rect.top - box.top - host.clientTop + host.scrollTop}px`;
-        element.style.width = `${rect.width}px`;
-        element.style.height = `${rect.height}px`;
+        element.style.left = `${local.left}px`;
+        element.style.top = `${local.top}px`;
+        element.style.width = `${local.width}px`;
+        element.style.height = `${local.height}px`;
         nodes.push(element);
       }
     }
@@ -361,8 +363,9 @@ export class AnnotationSession {
         host.append(overlay); this.overlays.set(host, overlay);
       }
       if (overlay.parentElement !== host) host.append(overlay);
-      overlay.style.width = `${host.scrollWidth}px`;
-      overlay.style.height = `${host.scrollHeight}px`;
+      // A PDF page is a clipping boundary, even if children overflow during zoom.
+      overlay.style.width = `${host === root ? host.scrollWidth : host.clientWidth}px`;
+      overlay.style.height = `${host === root ? host.scrollHeight : host.clientHeight}px`;
       overlay.replaceChildren(...nodes);
     }
     this.located = located;
@@ -373,7 +376,14 @@ export class AnnotationSession {
     }), this.unlocated, "");
     this.emphasize(this.activeId, this.hoveredId);
     this.tools.dataset.error = "false";
-    this.notesButton.textContent = `Reading notes · ${this.entries.length}${this.unlocated.size ? ` · ${this.unlocated.size} unlocated` : ""}`;
+    const label = `Reading notes · ${this.entries.length}${this.unlocated.size ? ` · ${this.unlocated.size} unlocated` : ""}`;
+    this.notesButton.setAttribute("aria-label", label);
+    if (this.mobile) {
+      this.notesButton.replaceChildren(); setIcon(this.notesButton, "marglow");
+      const count = this.notesButton.ownerDocument.createElement("span");
+      count.className = "marglow-notes-count"; count.textContent = String(this.entries.length);
+      count.setAttribute("aria-hidden", "true"); this.notesButton.append(count);
+    } else this.notesButton.textContent = label;
     this.notesButton.title = this.unlocated.size ? "Show annotations in the sidebar; use Reassociate an annotation for unlocated entries." : "Show reading notes in the right sidebar";
   }
 

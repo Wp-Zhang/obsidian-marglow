@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { trustTestVault } from "./obsidian-test-trust.mjs";
 import { spawn } from "node:child_process";
 import { copyFile, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -79,9 +80,7 @@ try {
       }
     }).observe(document.body, { childList: true, subtree: true });
   });
-  const trust = page.getByRole("button", { name: "Trust author and enable plugins", exact: true });
-  await trust.waitFor({ timeout: 15000 });
-  await trust.click();
+  await trustTestVault(page, vault);
   await page.waitForSelector(".marglow-file-tools button");
   await page.evaluate(() => app.setting.close());
   const closeSidebar = () => page.evaluate(() => {
@@ -266,11 +265,15 @@ try {
   await highlightCount(3);
   const geometryMatches = () => {
     const first = document.querySelector('.page[data-page-number="1"] .textLayer span');
-    const highlight = document.querySelector(".marglow-highlight");
-    if (!first || !highlight) return false;
+    if (!first) return false;
     const range = document.createRange(); range.selectNodeContents(first.firstChild);
-    const text = range.getBoundingClientRect(), overlay = highlight.getBoundingClientRect();
-    return ["left", "top", "width", "height"].every(key => Math.abs(text[key] - overlay[key]) < 3);
+    const text = range.getBoundingClientRect();
+    // Screen sorting changes fragment order after rotation; match the text box,
+    // rather than assuming the first overlay corresponds to the first DOM span.
+    return [...document.querySelectorAll('.page[data-page-number="1"] .marglow-highlight')].some(highlight => {
+      const overlay = highlight.getBoundingClientRect();
+      return ["left", "top", "width", "height"].every(key => Math.abs(text[key] - overlay[key]) < 3);
+    });
   };
   await page.waitForFunction(geometryMatches);
   passed("PDF cross-page annotation with correctly aligned geometry");
@@ -320,7 +323,7 @@ try {
   await pageTools.getByRole("button", { name: /^Reading notes/ }).click();
   await page.evaluate(async () => app.workspace.getLeaf("tab").openFile(app.vault.getFileByPath("Renamed.md"), { state: { mode: "preview" } }));
   await page.waitForFunction(() => document.querySelector('.marglow-comments-source')?.textContent === "Renamed.md");
-  assert.ok(await sidebar.locator('.marglow-comment-card').filter({ hasText: "Comment from the page toolbar." }).count());
+  await sidebar.locator('.marglow-comment-card').filter({ hasText: "Comment from the page toolbar." }).waitFor();
   await page.evaluate(() => app.workspace.revealLeaf(app.workspace.getLeavesOfType("marglow-comments")[0]));
   await page.waitForFunction(() => document.querySelector('.marglow-comments-source')?.textContent === "Renamed.md");
   await page.evaluate(() => app.workspace.setActiveLeaf(app.workspace.getLeavesOfType("pdf")[0], { focus: true }));
@@ -338,6 +341,21 @@ try {
   await page.waitForFunction(geometryMatches);
   await page.screenshot({ path: `${output}/pdf-rotated.png` });
   passed("PDF zoom and rotation geometry");
+  await page.evaluate(() => {
+    for (const page of document.querySelectorAll('.page')) {
+      page.style.transformOrigin = 'top left'; page.style.transform = 'scale(1.7)';
+    }
+  });
+  assert.equal(await page.evaluate(() => !!document.querySelector('.page[style*="scale(1.7)"]')), true);
+  await page.waitForFunction(geometryMatches);
+  assert.ok(await page.evaluate(() => [...document.querySelectorAll('.page > .marglow-overlay')].every(overlay => {
+    const page = overlay.parentElement;
+    return Math.abs(parseFloat(overlay.style.width) - page.clientWidth) < 1 && Math.abs(parseFloat(overlay.style.height) - page.clientHeight) < 1 && getComputedStyle(overlay).overflow === 'hidden';
+  })));
+  await page.evaluate(() => document.querySelectorAll('.page').forEach(page => { page.style.transform = ''; page.style.transformOrigin = ''; }));
+  await page.waitForFunction(geometryMatches);
+  passed("PDF CSS/pinch scaling preserves text alignment and clips overlays to each page");
+
 
   await page.evaluate(async () => { await app.plugins.disablePlugin("marglow"); });
   assert.equal(await page.locator(".marglow-overlay").count(), 0);
@@ -565,6 +583,41 @@ try {
   await page.screenshot({ path: `${output}/styled-selection-geometry.png` });
   assert.equal(await readFile(`${vault}/Styled.md`, "utf8"), styledText);
   passed("Italic/link/nested styled selections draw each region once for highlight and underline");
+  await closeSidebar();
+  await page.setViewportSize({ width: 402, height: 874 });
+  // Reproduce the phone host's inset contract in a visible layout fixture.
+  // Setting phone classes on the desktop workspace hides native desktop leaves;
+  // this checks layout and hit testing, without claiming device acceptance.
+  await page.evaluate(() => {
+    const fixture = document.createElement('div'); fixture.className = 'is-phone marglow-phone-fixture';
+    Object.assign(fixture.style, { position: 'fixed', inset: '0', width: '402px', height: '800px', zIndex: '9999', background: 'white' });
+    fixture.style.setProperty('--view-top-spacing-markdown', '112px');
+    fixture.innerHTML = '<div class="mod-root"><div class="workspace-leaf-content"><div class="view-content"><div class="markdown-reading-view marglow-reading-container"><div class="markdown-preview-view">Reading content</div></div></div></div></div>';
+    const pane = fixture.querySelector('.marglow-reading-container');
+    const toolbar = document.querySelector('.marglow-file-tools').cloneNode(true);
+    toolbar.classList.add('marglow-mobile');pane.prepend(toolbar);
+    toolbar.querySelector('[aria-label="Choose green"]').addEventListener('click', event => event.currentTarget.setAttribute('aria-pressed', 'true'));
+    document.body.append(fixture);
+  });
+  const phoneLayout = await page.evaluate(() => {
+    const toolbar = document.querySelector('.marglow-phone-fixture .marglow-file-tools'), pane = toolbar.parentElement;
+    const root = pane.querySelector('.markdown-preview-view');
+    const button = toolbar.querySelector('button'), box = button.getBoundingClientRect();
+    return { inset: toolbar.getBoundingClientRect().top - pane.getBoundingClientRect().top, padding: getComputedStyle(root).paddingTop,
+      reachable: button.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)) };
+  });
+  assert.ok(Math.abs(phoneLayout.inset - 112) < 1, JSON.stringify(phoneLayout));
+  assert.equal(phoneLayout.padding, '0px'); assert.equal(phoneLayout.reachable, true);
+  const phoneTools = page.locator('.marglow-phone-fixture').getByRole('toolbar', { name: 'Page annotation tools' });
+  await phoneTools.getByRole('button', { name: 'Choose green', exact: true }).click();
+  assert.equal(await phoneTools.getByRole('button', { name: 'Choose green', exact: true }).getAttribute('aria-pressed'), 'true');
+  await page.evaluate(() => document.querySelector('.marglow-phone-fixture').style.setProperty('--view-top-spacing-markdown', '64px'));
+  await page.waitForFunction(() => {
+    const toolbar = document.querySelector('.marglow-phone-fixture .marglow-file-tools');return Math.abs(toolbar.getBoundingClientRect().top - toolbar.parentElement.getBoundingClientRect().top - 64) < 1;
+  });
+  await page.screenshot({ path: `${output}/phone-safe-area-layout.png` });
+  await page.evaluate(() => document.querySelector('.marglow-phone-fixture').remove());
+  passed("Phone inset layout fixture keeps the Markdown toolbar reachable as navigation spacing changes");
   assert.equal(await readFile(`${vault}/Renamed.md`, "utf8"), markdown);
   assert.deepEqual(await readFile(`${vault}/Smoke.pdf`), pdf);
   assert.deepEqual(errors, []);

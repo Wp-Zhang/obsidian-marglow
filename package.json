@@ -1,6 +1,6 @@
 {
   "name": "obsidian-marglow",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "Local-first Markdown and PDF highlights and comments for Obsidian.",
@@ -18,7 +18,9 @@
     "package": "npm run build && node scripts/package.mjs",
     "smoke:mac": "npm run package && node scripts/smoke-obsidian.mjs",
     "lint": "eslint src",
-    "verify:release": "node scripts/validate-release.mjs"
+    "verify:release": "node scripts/validate-release.mjs",
+    "smoke:mobile": "npm run package && node scripts/smoke-mobile-obsidian.mjs",
+    "smoke:webkit": "node scripts/smoke-webkit.mjs"
   },
   "overrides": {
     "moment": "^2.31.0"

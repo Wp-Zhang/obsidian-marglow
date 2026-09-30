@@ -1,6 +1,6 @@
 import { waitForLayout } from "./navigation";
 import type { Annotation, CapturedSelection, DocumentAdapter, PdfSegment, Rect } from "./model";
-import { normalizeText } from "./text-index";
+import { normalizeText, TextIndex } from "./text-index";
 
 // All access to Obsidian's non-public PDF viewer is confined to this module.
 interface PageViewport {
@@ -90,7 +90,9 @@ export class PdfAdapter implements DocumentAdapter {
         textRange.selectNodeContents(node);
         if (part.compareBoundaryPoints(Range.START_TO_START, textRange) > 0) textRange.setStart(part.startContainer, part.startOffset);
         if (part.compareBoundaryPoints(Range.END_TO_END, textRange) < 0) textRange.setEnd(part.endContainer, part.endOffset);
-        selectedRects.push(...textRange.getClientRects());
+        // PDF.js text nodes are single-line runs. Bounding rectangles consistently
+        // include nested viewer transforms across engines, unlike fragment rects.
+        selectedRects.push(textRange.getBoundingClientRect());
       }
       for (const rect of selectedRects) {
         if (rect.width <= 0 || rect.height <= 0) continue;
@@ -118,6 +120,20 @@ export class PdfAdapter implements DocumentAdapter {
       if (!page || !page.viewport || !page.div.isConnected) continue;
       const box = pageBox(page);
       if (!box.width || !box.height) continue;
+      // A matching fingerprint and a unique same-page quotation let us measure
+      // the current text instead of replaying bad geometry saved by another engine.
+      const layer = page.div.querySelector<HTMLElement>(".textLayer");
+      if (layer) {
+        const index = new TextIndex(layer, true), quote = normalizeText(segment.quote);
+        const start = index.text.indexOf(quote);
+        if (start >= 0 && index.text.indexOf(quote, start + 1) === -1) {
+          const measured = index.rects(start, start + quote.length, true);
+          if (measured.length) {
+            for (const rect of measured) { this.hosts.set(rect, page.div); rects.push(rect); }
+            continue;
+          }
+        }
+      }
       for (const geometry of segment.rects) {
         const rect = rectFromPdf(geometry, box, page.viewport);
         this.hosts.set(rect, page.div);

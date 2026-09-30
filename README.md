@@ -20,9 +20,11 @@ The name combines **margin** and **glow**.
 
 ## Status
 
-**0.2.0 is the first public beta**, available from [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.0). It has not yet been reviewed or listed in Obsidian Community Plugins. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
+**0.2.1 is a public beta**, available from [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.1). It has not yet been reviewed or listed in Obsidian Community Plugins. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
 
-The Markdown page toolbar stays flush with the top of the reading pane. A persistent page toolbar offers color selection, icon tools for Highlight, Underline, and Comment, and Reading notes. Reading notes opens the native right sidebar without opening another document tab. Choose a color before selecting text; activate Highlight to mark subsequent selections, or Comment to write on the next selection. Click the active tool again to turn it off. Floating selection tools remain available.
+The Markdown page toolbar stays flush with the top of the reading pane. A persistent page toolbar offers color selection, icon tools for Highlight, Underline, and Comment, and Reading notes. Reading notes opens the native right sidebar without opening another document tab. Choose a color before selecting text; activate Highlight to mark subsequent selections, or Comment to write on the next selection. Click the active tool again to turn it off. Floating selection tools remain available. On mobile, Reading notes uses an icon with an annotation-count badge so the toolbar stays on one row.
+
+0.2.1 fixes the phone Reading-view toolbar navigation inset and scaled PDF annotation coordinates/page clipping. Unique same-page PDF quotations are displayed from current text geometry instead of replaying bad cross-device widths; original reading notes are not rewritten. Checked with Obsidian Desktop 1.13.7 mobile emulation and WebKit 26.6; physical iOS retesting remains pending.
 
 ## Features
 
@@ -44,9 +46,9 @@ Windows, Markdown editing-view annotations, OCR, dedicated Copy link/Copy quote 
 
 ## Install the public beta
 
-Download `marglow-0.2.0.zip` from the [0.2.0 release](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.0), extract it, and copy the three files inside `marglow/` into `<vault>/.obsidian/plugins/marglow/`. Reload Obsidian and enable **Marglow** in Community plugins settings. Individual `main.js`, `manifest.json`, and `styles.css` downloads are also available.
+Download `marglow-0.2.1.zip` from the [0.2.1 release](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.1), extract it, and copy the three files inside `marglow/` into `<vault>/.obsidian/plugins/marglow/`. Reload Obsidian and enable **Marglow** in Community plugins settings. Individual `main.js`, `manifest.json`, and `styles.css` downloads are also available.
 
-With [BRAT](https://github.com/TfTHacker/obsidian42-brat), add `Wp-Zhang/obsidian-marglow` and allow prerelease versions, or select version `0.2.0` explicitly. Start in a test Vault. iOS uses the same files and your existing sync workflow; device acceptance is still pending.
+With [BRAT](https://github.com/TfTHacker/obsidian42-brat), add `Wp-Zhang/obsidian-marglow` and allow prerelease versions, or select version `0.2.1` explicitly. Start in a test Vault. iOS uses the same files and your existing sync workflow; device acceptance is still pending.
 
 Report issues through [GitHub Issues](https://github.com/Wp-Zhang/obsidian-marglow/issues/new/choose) with versions, device, reproduction steps, and a sample with private content removed.
 
