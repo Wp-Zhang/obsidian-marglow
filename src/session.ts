@@ -1,3 +1,4 @@
+import { setIcon } from "obsidian";
 import { isAnnotationDelete } from "./keyboard";
 import { AnnotationSidebar } from "./sidebar";
 import type { Entry } from "./format";
@@ -36,8 +37,10 @@ export class AnnotationSession {
   private suspended = false;
   private pointerStart: { x: number; y: number } | null = null;
   private preferredColor: Color = "yellow";
-  private toolMode: "highlight" | "comment" | null = null;
+  private preferredStyle: "highlight" | "underline" = "highlight";
+  private toolMode: "highlight" | "underline" | "comment" | null = null;
   private pageHighlight: HTMLButtonElement;
+  private pageUnderline: HTMLButtonElement;
   private pageComment: HTMLButtonElement;
   private pageBusy = false;
   private pointerActive = false;
@@ -68,18 +71,24 @@ export class AnnotationSession {
         this.preferredColor = color;
         this.updatePageTools();
         const selection = this.currentSelection();
-        if (selection) await this.pageAction(selection, "highlight");
+        if (selection) await this.pageAction(selection, this.preferredStyle);
       }, `Choose ${color}`);
     }
     this.pageHighlight = document.createElement("button");
     this.pageHighlight.type = "button";
-    this.pageHighlight.textContent = "Highlight";
+    this.pageHighlight.setAttribute("aria-label", "Highlight");
+    setIcon(this.pageHighlight, "highlighter");
     this.pageHighlight.addEventListener("click", () => this.chooseTool("highlight"));
+    this.pageUnderline = document.createElement("button"); this.pageUnderline.type = "button";
+    this.pageUnderline.setAttribute("aria-label", "Underline"); this.pageUnderline.title = "Underline the selection or activate underline mode";
+    setIcon(this.pageUnderline, "underline");
+    this.pageUnderline.addEventListener("click", () => this.chooseTool("underline"));
     this.pageComment = document.createElement("button");
     this.pageComment.type = "button";
-    this.pageComment.textContent = "Comment";
+    this.pageComment.setAttribute("aria-label", "Comment");
+    setIcon(this.pageComment, "message-square");
     this.pageComment.addEventListener("click", () => this.chooseTool("comment"));
-    this.tools.append(this.pageHighlight, this.pageComment);
+    this.tools.append(this.pageHighlight, this.pageUnderline, this.pageComment);
     this.sidebar = new AnnotationSidebar(document, (annotation, edit) => { void this.selectFromSidebar(annotation, edit); }, id => this.emphasize(this.activeId, id), annotation => { void this.removeFromSidebar(annotation); });
     this.ui.navigationContainer = this.sidebar.element;
     this.sidebar.element.classList.toggle("marglow-mobile", mobile);
@@ -169,7 +178,7 @@ export class AnnotationSession {
         this.ui.showRelocate(captured, { highlight: async () => {}, comment: async () => {}, relocate: () => this.callbacks.reassociate(captured), cancelRelocate: this.callbacks.cancelReassociation });
         return;
       }
-      const existing = this.entries.find(entry => this.adapter.matches(entry.annotation, captured));
+      const existing = this.entries.find(entry => (entry.annotation.style ?? "highlight") === this.preferredStyle && this.adapter.matches(entry.annotation, captured));
       if (this.toolMode) { void this.pageAction(captured, this.toolMode); return; }
       this.ui.show(captured, this.actions(captured, existing), existing?.annotation);
       this.render();
@@ -179,7 +188,7 @@ export class AnnotationSession {
   }
 
   private actions(selection: CapturedSelection, entry?: Entry) {
-    const annotation = entry?.annotation ?? createAnnotation(selection, this.preferredColor);
+    const annotation = entry?.annotation ?? createAnnotation(selection, this.preferredColor, "", this.preferredStyle);
     this.preview = entry ? null : annotation;
     this.emphasize(annotation.id, this.hoveredId, true);
     this.render();
@@ -235,9 +244,10 @@ export class AnnotationSession {
     }
   }
 
-  private chooseTool(mode: "highlight" | "comment"): void {
+  private chooseTool(mode: "highlight" | "underline" | "comment"): void {
     if (this.ui.hasDraft || this.ui.isBusy) return;
     if (this.toolMode === mode) { this.toolMode = null; this.updatePageTools(); return; }
+    if (mode !== "comment") this.preferredStyle = mode;
     const selection = this.currentSelection();
     if (selection) { void this.pageAction(selection, mode); return; }
     this.ui.close();
@@ -245,9 +255,10 @@ export class AnnotationSession {
     this.updatePageTools();
   }
 
-  private async pageAction(selection: CapturedSelection, mode: "highlight" | "comment"): Promise<void> {
+  private async pageAction(selection: CapturedSelection, mode: "highlight" | "underline" | "comment"): Promise<void> {
     if (this.pageBusy || this.ui.hasDraft || this.ui.isBusy || this.callbacks.isReassociating()) return;
-    const entry = this.entries.find(entry => this.adapter.matches(entry.annotation, selection));
+    if (mode !== "comment") this.preferredStyle = mode;
+    const entry = this.entries.find(entry => (entry.annotation.style ?? "highlight") === this.preferredStyle && this.adapter.matches(entry.annotation, selection));
     const actions = this.actions(selection, entry);
     if (mode === "comment") {
       this.toolMode = null;
@@ -264,6 +275,7 @@ export class AnnotationSession {
 
   private updatePageTools(): void {
     this.tools.querySelectorAll<HTMLButtonElement>(".marglow-color").forEach(button => button.setAttribute("aria-pressed", String(button.classList.contains(`marglow-${this.preferredColor}`))));
+    this.pageUnderline.setAttribute("aria-pressed", String(this.toolMode === "underline"));
     this.pageHighlight.setAttribute("aria-pressed", String(this.toolMode === "highlight"));
     this.pageComment.setAttribute("aria-pressed", String(this.toolMode === "comment"));
     this.pageHighlight.title = this.toolMode === "highlight" ? "Highlight mode on — select text, or click to turn off" : "Highlight the selection or activate highlight mode";
@@ -320,7 +332,7 @@ export class AnnotationSession {
         const nodes = layers.get(host) ?? [];
         layers.set(host, nodes);
         const element = root.ownerDocument.createElement("div");
-        element.className = `marglow-highlight marglow-${annotation.color}`;
+        element.className = `marglow-highlight marglow-${annotation.color}${annotation.style === "underline" ? " marglow-underline" : ""}`;
         element.dataset.annotationId = annotation.id;
         element.dataset.comment = String(!!annotation.comment.trim());
         element.style.left = `${rect.left - box.left - host.clientLeft + host.scrollLeft}px`;
@@ -391,7 +403,7 @@ export class AnnotationSession {
     if (!navigated) this.callbacks.report(this.unlocated.has(annotation.id) ? "This annotation is unlocated. Reassociate it from Reading notes." : "This passage is not rendered yet. Scroll to it in the document, then try again.");
     if (edit) {
       const selection = { quote: entry.annotation.quote, anchor: entry.annotation.anchor, rect: rect ?? this.sidebar.element.getBoundingClientRect() };
-      this.ui.showComment(selection, this.actions(selection, entry), entry.annotation);
+      this.ui.showComment(selection, this.actions(selection, entry), entry.annotation, this.sidebar.editorHost(annotation.id));
     }
   }
 

@@ -41,6 +41,7 @@ function validMetadata(value: unknown): value is Omit<Annotation, "quote" | "com
   if (!record(value) || typeof value.id !== "string" || !ID.test(value.id) || typeof value.blockId !== "string" || !ID.test(value.blockId)) return false;
   if (!COLORS.some(color => color === value.color) || typeof value.createdAt !== "string" || typeof value.updatedAt !== "string") return false;
   if (!Number.isFinite(Date.parse(value.createdAt)) || !Number.isFinite(Date.parse(value.updatedAt)) || !record(value.anchor)) return false;
+  if (value.style !== undefined && value.style !== "highlight" && value.style !== "underline") return false;
   const anchor = value.anchor;
   if (anchor.kind === "markdown") {
     return Number.isInteger(anchor.textStart) && finite(anchor.textStart) && anchor.textStart >= 0 && typeof anchor.prefix === "string" && typeof anchor.suffix === "string";

@@ -24,6 +24,7 @@ export class AnnotationSidebar {
   private hover: (id: string | null) => void;
 
   render(annotations: Annotation[], unlocated: Set<string>, error: string): void {
+    if (this.element.querySelector(".marglow-inline-composer")) return;
     const signature = JSON.stringify([annotations, [...unlocated], error]);
     if (signature === this.signature) return;
     this.signature = signature;
@@ -45,7 +46,7 @@ export class AnnotationSidebar {
       comment.setAttribute("aria-label", `Edit comment: ${annotation.quote.slice(0, 80)}`);
       comment.disabled = !!error;
       comment.addEventListener("click", () => this.select(annotation, true));
-      comment.textContent = annotation.comment || "Highlight · no comment";
+      comment.textContent = annotation.comment || `${annotation.style === "underline" ? "Underline" : "Highlight"} · no comment`;
       jump.append(quote); jump.disabled = !!error;
       jump.addEventListener("click", () => this.select(annotation, false));
       const time = document.createElement("time");
@@ -71,6 +72,8 @@ export class AnnotationSidebar {
       this.cards.set(annotation.id, card); this.list.append(card);
     }
   }
+
+  editorHost(id: string): HTMLElement | undefined { return this.cards.get(id); }
 
   emphasize(active: string | null, hovered: string | null, reveal = false): void {
     for (const [id, card] of this.cards) {

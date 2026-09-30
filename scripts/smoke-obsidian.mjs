@@ -169,6 +169,8 @@ try {
   await page.mouse.move(bodyRect.x + bodyRect.width - 2, bodyRect.y + bodyRect.height / 2);
   await page.waitForFunction(id => !!document.querySelector(`.marglow-comment-card.is-hovered[data-annotation-id="${id}"]`), ids[0]);
   await card.locator(".marglow-comment-text").click();
+  assert.equal(await sidebar.locator(".marglow-inline-composer textarea").count(), 1);
+  assert.equal(await page.locator("body > .marglow-composer").count(), 0);
   await page.getByRole("textbox", { name: "Comment", exact: true }).fill("Sidebar edit.");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await page.waitForFunction(() => document.querySelector('.marglow-sidebar')?.textContent.includes("Sidebar edit."));
@@ -349,6 +351,42 @@ try {
   await highlightCount(0);
   assert.ok((await page.evaluate(async () => app.vault.read(app.vault.getFileByPath("Renamed.md.annotations.md")))).includes("Handwritten summary."));
   passed("Markdown Delete shortcut, protected text editing, and card hover-delete preserve handwritten notes");
+  assert.equal(await pageTools.getByRole("button", { name: "Highlight", exact: true }).locator("svg").count(), 1);
+  assert.equal(await pageTools.getByRole("button", { name: "Underline", exact: true }).locator("svg").count(), 1);
+  assert.equal(await pageTools.getByRole("button", { name: "Comment", exact: true }).locator("svg").count(), 1);
+  await selectStrong();
+  await page.getByRole("button", { name: "Highlight yellow", exact: true }).click();
+  await highlightCount(1);
+  await selectStrong();
+  await pageTools.getByRole("button", { name: "Underline", exact: true }).click();
+  await highlightCount(2);
+  await page.waitForFunction(() => document.querySelectorAll('.marglow-underline').length === 1);
+  const underlineStyle = await page.locator('.marglow-underline').evaluate(element => ({ background: getComputedStyle(element).backgroundColor, border: getComputedStyle(element).borderBottomWidth }));
+  assert.equal(underlineStyle.background, "rgba(0, 0, 0, 0)"); assert.equal(underlineStyle.border, "2px");
+  await selectStrong();
+  await pageTools.getByRole("button", { name: "Underline", exact: true }).click();
+  const mdText = await page.evaluate(async () => app.vault.read(app.vault.getFileByPath("Renamed.md.annotations.md")));
+  assert.equal(mdText.match(/oa:annotation:start/g).length, 2);
+  const underlineCard = sidebar.locator('.marglow-comment-card').filter({ hasText: "Underline · no comment" });
+  await underlineCard.locator('.marglow-comment-text').click();
+  await sidebar.getByRole("textbox", { name: "Comment", exact: true }).fill("Inline underline comment.");
+  await sidebar.getByRole("button", { name: "Save", exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('.marglow-sidebar')?.textContent.includes("Inline underline comment."));
+  await page.screenshot({ path: `${output}/inline-underline.png` });
+  await closeSidebar();
+  await page.evaluate(async () => app.workspace.getLeavesOfType("markdown").find(leaf => leaf.view.file?.path === "Renamed.md").openFile(app.vault.getFileByPath("Smoke.pdf")));
+  await page.waitForFunction(() => document.querySelectorAll('.textLayer').length === 2);
+  await page.evaluate(() => {
+    const layers = [...document.querySelectorAll('.textLayer')];
+    const start = layers[0].querySelector('span').firstChild, end = layers[1].querySelector('span').firstChild;
+    const range = document.createRange(); range.setStart(start, 0); range.setEnd(end, end.length);
+    getSelection().removeAllRanges(); getSelection().addRange(range);
+  });
+  await pageTools.getByRole("button", { name: "Underline", exact: true }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.marglow-underline').length === 3);
+  await page.waitForFunction(geometryMatches);
+  passed("Icon tools, independent same-range underlines, inline comments and cross-page PDF underlines");
+
 
   assert.equal(await readFile(`${vault}/Renamed.md`, "utf8"), markdown);
   assert.deepEqual(await readFile(`${vault}/Smoke.pdf`), pdf);

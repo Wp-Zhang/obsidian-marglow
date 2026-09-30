@@ -70,3 +70,17 @@ it("routes the card delete button to its exact annotation", () => {
   sidebar.element.querySelector<HTMLButtonElement>('[aria-label="Delete annotation"]')!.click();
   expect(remove).toHaveBeenCalledWith(item);
 });
+
+it("keeps the inline draft attached while external note content changes", () => {
+  const sidebar = new AnnotationSidebar(document, vi.fn(), vi.fn(), vi.fn());
+  const item = annotation(); sidebar.render([item], new Set(), "");
+  const draft = document.createElement("div"); draft.className = "marglow-inline-composer";
+  draft.innerHTML = '<textarea>Unsaved local thought</textarea>';
+  sidebar.editorHost(item.id)!.append(draft);
+  sidebar.render([{ ...item, comment: "External edit" }], new Set(), "");
+  expect(sidebar.element.querySelector("textarea")).toBe(draft.firstChild);
+  expect(sidebar.element.querySelector("textarea")!.value).toBe("Unsaved local thought");
+  draft.remove();
+  sidebar.render([{ ...item, comment: "External edit" }], new Set(), "");
+  expect(sidebar.element.textContent).toContain("External edit");
+});

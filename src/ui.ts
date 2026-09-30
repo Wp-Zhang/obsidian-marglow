@@ -31,6 +31,7 @@ export class AnnotationUI {
   private busy = false;
   private rect: DOMRect | null = null;
   private abort = new AbortController();
+  private inlineHost: HTMLElement | null = null;
   navigationContainer: HTMLElement | null = null;
 
   constructor(private document: Document, private mobile: boolean, private report: (message: string) => void, private onClose: () => void = () => {}, private onChange: () => void = () => {}) {
@@ -50,10 +51,10 @@ export class AnnotationUI {
   get hasDraft(): boolean { return this.saveDraft !== null; }
   get isBusy(): boolean { return this.busy; }
 
-  showComment(selection: CapturedSelection, actions: Actions, annotation?: Annotation): void {
+  showComment(selection: CapturedSelection, actions: Actions, annotation?: Annotation, host?: HTMLElement): void {
     if (this.hasDraft || this.busy) return;
     this.rect = selection.rect;
-    this.composer(actions, annotation);
+    this.composer(actions, annotation, host);
   }
 
   show(selection: CapturedSelection, actions: Actions, annotation?: Annotation): void {
@@ -87,15 +88,19 @@ export class AnnotationUI {
     this.rect = rect;
     const panel = this.panel("marglow-choices");
     for (const annotation of annotations) {
-      const label = `${annotation.quote.slice(0, 70)}${annotation.comment ? " · comment" : ""}`;
+      const label = `${annotation.style === "underline" ? "Underline" : "Highlight"} · ${annotation.quote.slice(0, 70)}${annotation.comment ? " · comment" : ""}`;
       this.button(panel, label, () => select(annotation)).classList.add(`marglow-${annotation.color}`);
     }
     this.position();
   }
 
-  private composer(actions: Actions, annotation?: Annotation): void {
+  private composer(actions: Actions, annotation?: Annotation, host?: HTMLElement): void {
     this.close();
     const panel = this.panel("marglow-composer");
+    if (host) {
+      this.inlineHost = host; host.classList.add("is-editing");
+      panel.classList.add("marglow-inline-composer"); host.append(panel);
+    }
     panel.setAttribute("role", "dialog");
     panel.setAttribute("aria-label", annotation ? "Edit annotation comment" : "Add annotation comment");
     const label = this.document.createElement("label");
@@ -107,7 +112,7 @@ export class AnnotationUI {
     const initial = annotation?.comment ?? "";
     input.value = initial;
     panel.append(label, input);
-    if (annotation) {
+    if (annotation && !host) {
       const palette = this.document.createElement("div");
       palette.className = "marglow-composer-actions";
       for (const color of COLORS) {
@@ -128,7 +133,7 @@ export class AnnotationUI {
     this.button(buttons, "Cancel", () => this.close());
     if (annotation) {
       if (initial) this.button(buttons, "Remove comment", () => { input.value = ""; return commit(); });
-      if (actions.delete) this.button(buttons, "Delete annotation", () => this.run(actions.delete!));
+      if (actions.delete && !host) this.button(buttons, "Delete annotation", () => this.run(actions.delete!));
     }
     input.addEventListener("keydown", event => {
       if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); void commit(); }
@@ -188,7 +193,7 @@ export class AnnotationUI {
   }
 
   private position(): void {
-    if (!this.element || !this.rect) return;
+    if (!this.element || !this.rect || this.inlineHost) return;
     const win = this.document.defaultView!;
     const viewport = win.visualViewport;
     const width = viewport?.width ?? win.innerWidth;
@@ -210,6 +215,8 @@ export class AnnotationUI {
   close(): void {
     const wasOpen = this.element !== null;
     this.element?.remove();
+    this.inlineHost?.classList.remove("is-editing");
+    this.inlineHost = null;
     this.element = null;
     this.saveDraft = null;
     if (wasOpen) this.onClose();

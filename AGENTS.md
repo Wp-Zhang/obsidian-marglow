@@ -17,12 +17,12 @@ Marglow is an Obsidian plugin for highlighting and commenting on Markdown and PD
 
 - Ship on **Mac and iOS** first. Windows is a later extension.
 - Support Markdown **Reading view** and text-selectable PDFs, including cross-page selections. Markdown editing views and OCR are outside the MVP.
-- A single annotation consists of a highlight and an optional comment. Adding or removing a comment keeps the annotation and block IDs stable; removing a comment keeps the highlight.
+- A single annotation consists of a background highlight or underline and an optional comment. Treat styles as independent categories; exact-selection reuse applies within a category. Older entries without a style remain background highlights. Adding or removing a comment keeps the annotation and block IDs stable; removing a comment keeps the highlight.
 - Reuse an annotation for the exact same source selection. Allow partially overlapping annotations and let users choose which one to edit.
 - Save comments when users click or tap outside the composer. Provide visible save and cancel controls on iOS; support `Cmd + Enter` and `Esc` on Mac. Keep unsaved input when persistence fails.
 - Reflect direct comment edits in the companion note. Deleting a complete annotation entry removes its highlight; clearing only its comment preserves the highlight.
 - Preserve unlocated annotations and support manual reassociation without changing their IDs. Do not guess an ambiguous location.
-- Distinguish selected annotations from hovered and idle annotations. Keep the per-document Comments sidebar linked to Markdown/PDF highlights, with safe navigation, editing, and retained unlocated entries. Use a native Obsidian right-sidebar view; let the host manage docking and mobile drawers instead of placing an overlay inside the document.
+- Distinguish selected annotations from hovered and idle annotations. Keep the per-document Comments sidebar linked to Markdown/PDF highlights, with safe navigation, inline card editing, and retained unlocated entries. Use a native Obsidian right-sidebar view; let the host manage docking and mobile drawers instead of placing an overlay inside the document.
 - Use stable native block references in the companion reading note. Dedicated Copy link and Copy quote actions remain future work.
 
 ## Architecture and Data Integrity

@@ -91,3 +91,19 @@ it("lets sidebar navigation await a failed save without losing its draft", async
   expect(document.querySelector("textarea")!.value).toBe("Unsaved thought");
   ui.dispose();
 });
+
+it("edits inside a card and retains a stale draft after persistence fails", async () => {
+  const save = vi.fn().mockRejectedValue(new Error("Entry changed externally"));
+  const ui = new AnnotationUI(document, false, vi.fn());
+  const card = document.createElement("article"); document.body.append(card);
+  ui.showComment(selection, { highlight: async () => {}, comment: save }, annotation(), card);
+  expect(card.querySelector(".marglow-inline-composer")).not.toBeNull();
+  const input = card.querySelector("textarea")!; input.value = "Keep local draft";
+  expect(await ui.finish()).toBe(false);
+  expect(input.isConnected).toBe(true); expect(input.value).toBe("Keep local draft");
+  expect(card.classList.contains("is-editing")).toBe(true);
+  button("Cancel").click();
+  expect(card.querySelector("textarea")).toBeNull();
+  expect(card.classList.contains("is-editing")).toBe(false);
+  ui.dispose();
+});

@@ -13,6 +13,10 @@ export class CommentsView extends ItemView {
 
   setSession(session: AnnotationSession | null): void {
     if (this.session === session && this.contentEl.childElementCount) return;
+    if (this.session?.sidebarElement.querySelector(".marglow-inline-composer")) {
+      void this.session.ui.finish().then(saved => { if (saved) this.setSession(session); });
+      return;
+    }
     this.session = session;
     this.contentEl.replaceChildren();
     this.contentEl.classList.add("marglow-comments-view");

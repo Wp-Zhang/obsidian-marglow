@@ -98,3 +98,15 @@ describe("Markdown annotation persistence", () => {
     expect(() => parseReadingNote(text.replace("[10,20,30,40]", "[10,20,0,40]"))).toThrow();
   });
 });
+
+it("round-trips independent underline entries while accepting older highlights", () => {
+  const highlight = annotation();
+  const underline = { ...annotation("ann-underline"), style: "underline" as const };
+  const text = updateEntry(updateEntry(createReadingNote(source), highlight), underline);
+  const entries = parseReadingNote(text).entries;
+  expect(entries[0]!.annotation.style).toBeUndefined();
+  expect(entries[1]!.annotation.style).toBe("underline");
+  expect(entries[0]!.annotation.quote).toBe(entries[1]!.annotation.quote);
+  expect(entries[0]!.annotation.id).not.toBe(entries[1]!.annotation.id);
+  expect(() => parseReadingNote(text.replace('"style":"underline"', '"style":"unknown"'))).toThrow();
+});

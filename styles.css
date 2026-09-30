@@ -81,3 +81,11 @@
 .marglow-comment-delete { position: absolute; right: 8px; bottom: 8px; opacity: 0; pointer-events: none; color: var(--text-error); }
 .marglow-comment-card:hover .marglow-comment-delete, .marglow-comment-card:focus-within .marglow-comment-delete, .marglow-mobile .marglow-comment-delete { opacity: 1; pointer-events: auto; }
 @media (hover: none) { .marglow-comment-delete { opacity: 1; pointer-events: auto; } }
+
+.marglow-file-tools > button[aria-label="Highlight"], .marglow-file-tools > button[aria-label="Underline"], .marglow-file-tools > button[aria-label="Comment"] { display: inline-flex; align-items: center; justify-content: center; width: 34px; padding: 6px; }
+.marglow-file-tools svg { width: 20px; height: 20px; }
+.marglow-highlight.marglow-underline { background: transparent; border-bottom: 2px solid var(--marglow-color); opacity: 1; }
+.marglow-highlight.marglow-underline.is-active { box-shadow: none; }
+.marglow-composer.marglow-inline-composer { position: static; width: 100%; max-height: none; max-width: 100%; padding: 0; margin: 8px 0; border: 0; box-shadow: none; z-index: auto; }
+.marglow-comment-card.is-editing > .marglow-comment-text, .marglow-comment-card.is-editing > .marglow-comment-delete { display: none; }
+.marglow-inline-composer textarea { min-height: 100px; }

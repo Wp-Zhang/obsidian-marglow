@@ -1,4 +1,5 @@
 export const COLORS = ["yellow", "green", "blue", "pink"] as const;
+export type AnnotationStyle = "highlight" | "underline";
 export type Color = (typeof COLORS)[number];
 export type Rect = [number, number, number, number];
 
@@ -28,6 +29,7 @@ export interface Annotation {
   id: string;
   blockId: string;
   color: Color;
+  style?: AnnotationStyle;
   quote: string;
   comment: string;
   anchor: Anchor;
@@ -66,8 +68,8 @@ export function newId(prefix = "ann"): string {
   return `${prefix}-${crypto.randomUUID()}`;
 }
 
-export function createAnnotation(selection: CapturedSelection, color: Color, comment = ""): Annotation {
+export function createAnnotation(selection: CapturedSelection, color: Color, comment = "", style: AnnotationStyle = "highlight"): Annotation {
   const id = newId();
   const now = new Date().toISOString();
-  return { id, blockId: id, color, quote: selection.quote, anchor: selection.anchor, comment, createdAt: now, updatedAt: now };
+  return { id, blockId: id, color, style, quote: selection.quote, anchor: selection.anchor, comment, createdAt: now, updatedAt: now };
 }
