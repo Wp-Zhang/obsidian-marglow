@@ -2,13 +2,13 @@
 
 [English](../README.md) · 简体中文
 
-Marglow 为 Obsidian 中的 Markdown 与 PDF 提供就地高亮和评论。每份材料在旁边拥有一份可编辑的 Markdown 阅读笔记，源文件保持不变。
+Marglow 为 Obsidian 中的 Markdown 与 PDF 提供就地高亮和评论。每份材料拥有一份可编辑的 Markdown 阅读笔记，集中放在该材料目录的 `_marglow/` 子目录中，源文件保持不变。
 
 名称来自 **margin**（页边批注）与 **glow**（高亮）。
 
 ## 当前状态
 
-**0.1.6 是初版开发构建**，尚未发布到社区插件目录。Mac 集成已在 Obsidian 1.8.10 的独立测试 Vault 中验证。代码采用 iOS 可用的运行时能力并提供触屏控件，但 **iOS 真机验收尚未完成**。PDF 集成使用 Obsidian 查看器内部接口，宿主更新后可能需要适配。
+**0.1.7 是初版开发构建**，尚未发布到社区插件目录。Mac 集成已在 Obsidian 1.8.10 的独立测试 Vault 中验证。代码采用 iOS 可用的运行时能力并提供触屏控件，但 **iOS 真机验收尚未完成**。PDF 集成使用 Obsidian 查看器内部接口，宿主更新后可能需要适配。
 
 Markdown 工具栏固定在阅读区域顶部，不随正文留白下移。页面常驻工具栏提供颜色选择、荧光笔 Highlight／下划线 Underline／消息框 Comment 图标和 Reading notes。可先选颜色，再开启 Highlight 标注后续选区；也可先点 Comment，再选择文字输入评论。再次点击已开启的工具即可关闭模式，选区浮动工具栏仍然保留。
 
@@ -23,7 +23,7 @@ Markdown 工具栏固定在阅读区域顶部，不随正文留白下移。页�
 - 支持带可选文本层的 PDF，包括一条标注跨多个页面，以及随页面滚动、缩放、旋转移动的高亮。
 - 部分重叠标注独立保存；相同实际选区复用同类别的已有标注。
 - 点击或轻触评论输入框外部自动保存，并提供保存、取消、`Cmd + Enter` 和 `Esc`。
-- 使用 `source.md.annotations.md` 或 `source.pdf.annotations.md` 阅读笔记，保存可读引用、评论、稳定块 ID 和隐藏定位元数据。
+- 使用 `_marglow/source.md.annotations.md` 或 `_marglow/source.pdf.annotations.md` 阅读笔记，保存可读引用、评论、稳定块 ID 和隐藏定位元数据。
 - 直接编辑阅读笔记中的评论或删除完整条目，原文显示随之更新。
 - 手动重新关联未定位标注，并允许将阅读笔记重新关联到替代来源文件。
 - 局部写入与格式校验，保留用户手写笔记及其他条目。
@@ -57,12 +57,14 @@ iOS 使用相同的三个文件，通过你已有的文件管理或同步方式�
 
 跳转使用已验证的位置。长 Markdown 文档中若目标段落尚未被渲染，请先滚动到该段落再尝试；插件会提示而不会猜测位置。
 
+新阅读笔记存放在源目录的普通 `_marglow/` 子目录中；Vault 根目录的源文件使用根目录下的 `_marglow/`。文件名保留源扩展名以区分同名 Markdown/PDF。已有旁置笔记仍可识别并在原位置编辑；可在 Obsidian 内将它移动到 `_marglow/`，源关联通过元数据保留。每份材料只保留一份正式阅读笔记。
+
 首条标注成功保存后才创建阅读笔记。手动删除时，应删除从 `oa:annotation:start` 到对应 `oa:annotation:end` 的整个条目。仅编辑评论时保持元数据和 ID 不变。
 
 保存的摘录可通过普通 Obsidian 块引用使用：
 
 ```markdown
-[[source.md.annotations#^ann-<saved-id>]]
+[[folder/_marglow/source.md.annotations#^ann-<saved-id>]]
 ```
 
 请使用阅读笔记中的实际块 ID 替换示例占位内容。删除标注也会删除该引用的目标；其他编辑及重新关联保留 ID。

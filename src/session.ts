@@ -246,7 +246,12 @@ export class AnnotationSession {
 
   private chooseTool(mode: "highlight" | "underline" | "comment"): void {
     if (this.ui.hasDraft || this.ui.isBusy) return;
-    if (this.toolMode === mode) { this.toolMode = null; this.updatePageTools(); return; }
+    if (this.toolMode === mode) {
+      this.toolMode = null;
+      clearTimeout(this.selectionTimer);
+      this.adapter.root.ownerDocument.getSelection()?.removeAllRanges();
+      this.ui.close(); this.updatePageTools(); return;
+    }
     if (mode !== "comment") this.preferredStyle = mode;
     const selection = this.currentSelection();
     if (selection) { void this.pageAction(selection, mode); return; }
@@ -427,6 +432,7 @@ export class AnnotationSession {
 
   suspend(): void {
     this.suspended = true;
+    this.tools.querySelectorAll<HTMLButtonElement>("button").forEach(button => { button.disabled = true; });
     for (const overlay of this.overlays.values()) overlay.replaceChildren();
     this.located = [];
   }

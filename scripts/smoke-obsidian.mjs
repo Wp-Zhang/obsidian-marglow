@@ -103,7 +103,7 @@ try {
   }
   await pageTools.getByRole("button", { name: "Choose blue", exact: true }).click();
   assert.equal(await pageTools.getByRole("button", { name: "Choose blue", exact: true }).getAttribute("aria-pressed"), "true");
-  assert.equal(await page.evaluate(() => !!app.vault.getFileByPath("Smoke.md.annotations.md")), false);
+  assert.equal(await page.evaluate(() => !!app.vault.getFileByPath("_marglow/Smoke.md.annotations.md")), false);
   passed("Persistent toolbar and round visible color swatches in light/dark themes");
 
   const selectStrong = async end => {
@@ -113,7 +113,7 @@ try {
       getSelection().removeAllRanges(); getSelection().addRange(range);
     }, end);
   };
-  const noteText = () => page.evaluate(async () => app.vault.read(app.vault.getFileByPath("Smoke.md.annotations.md")));
+  const noteText = () => page.evaluate(async () => app.vault.read(app.vault.getFileByPath("_marglow/Smoke.md.annotations.md")));
   const highlightCount = count => page.waitForFunction(count => document.querySelectorAll(".marglow-highlight").length === count, count);
   await selectStrong();
   await page.getByRole("button", { name: "Highlight yellow", exact: true }).click();
@@ -133,7 +133,7 @@ try {
   await page.locator('.marglow-toolbar').getByRole("button", { name: "Comment", exact: true }).click();
   await page.getByRole("textbox", { name: "Comment", exact: true }).fill("A persisted comment.");
   await page.locator(".markdown-preview-view h1").click();
-  await page.waitForFunction(async () => (await app.vault.read(app.vault.getFileByPath("Smoke.md.annotations.md"))).includes("A persisted comment."));
+  await page.waitForFunction(async () => (await app.vault.read(app.vault.getFileByPath("_marglow/Smoke.md.annotations.md"))).includes("A persisted comment."));
   passed("Outside-click autosave");
 
   await selectStrong();
@@ -149,9 +149,9 @@ try {
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   passed("Overlapping selection and entry picker");
 
-  await page.evaluate(async () => { await app.vault.process(app.vault.getFileByPath("Smoke.md.annotations.md"), text => text.replace("A persisted comment.", "Direct edit.") + "\nHandwritten summary.\n"); });
+  await page.evaluate(async () => { await app.vault.process(app.vault.getFileByPath("_marglow/Smoke.md.annotations.md"), text => text.replace("A persisted comment.", "Direct edit.") + "\nHandwritten summary.\n"); });
   await page.waitForFunction(() => [...app.plugins.plugins.marglow.mounted.values()].some(mount => mount.session.entries.some(entry => entry.annotation.comment === "Direct edit.")));
-  await page.waitForFunction(ids => ids.every(id => app.metadataCache.getFileCache(app.vault.getFileByPath("Smoke.md.annotations.md"))?.blocks?.[id]), ids);
+  await page.waitForFunction(ids => ids.every(id => app.metadataCache.getFileCache(app.vault.getFileByPath("_marglow/Smoke.md.annotations.md"))?.blocks?.[id]), ids);
   passed("Direct Markdown edit and native block IDs");
   await pageTools.getByRole("button", { name: "Comments", exact: true }).click();
   const sidebar = page.getByRole("complementary", { name: "Annotation comments" });
@@ -175,7 +175,7 @@ try {
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await page.waitForFunction(() => document.querySelector('.marglow-sidebar')?.textContent.includes("Sidebar edit."));
   assert.ok((await noteText()).includes(`^${ids[0]}`));
-  await page.evaluate(async () => app.vault.process(app.vault.getFileByPath("Smoke.md.annotations.md"), text => text.replace("Sidebar edit.", "Direct edit.")));
+  await page.evaluate(async () => app.vault.process(app.vault.getFileByPath("_marglow/Smoke.md.annotations.md"), text => text.replace("Sidebar edit.", "Direct edit.")));
   await page.waitForFunction(() => document.querySelector('.marglow-sidebar')?.textContent.includes("Direct edit."));
   assert.equal(await page.evaluate(() => app.workspace.getLeavesOfType('marglow-comments').length), 1);
   assert.equal(await sidebar.evaluate(element => !!element.closest('.mod-right-split')), true);
@@ -203,20 +203,30 @@ try {
   assert.ok((await noteText()).includes("Direct edit."));
   passed("Unlocated preservation and manual reassociation");
 
-  await page.evaluate(async id => app.vault.process(app.vault.getFileByPath("Smoke.md.annotations.md"), text => text.replace(new RegExp(`%% oa:annotation:start ${id} %%[\\s\\S]*?%% oa:annotation:end ${id} %%`), "")), ids[1]);
+  await page.evaluate(async id => app.vault.process(app.vault.getFileByPath("_marglow/Smoke.md.annotations.md"), text => text.replace(new RegExp(`%% oa:annotation:start ${id} %%[\\s\\S]*?%% oa:annotation:end ${id} %%`), "")), ids[1]);
   await page.waitForFunction(() => document.querySelector(".marglow-file-tools > button:last-child")?.textContent === "Reading notes · 1");
   assert.ok((await noteText()).includes("Handwritten summary."));
   passed("Complete entry deletion and handwritten content preservation");
   await page.screenshot({ path: `${output}/markdown.png` });
   await page.evaluate(async () => app.fileManager.renameFile(app.vault.getFileByPath("Smoke.md"), "Renamed.md"));
-  await page.waitForFunction(() => !!app.vault.getFileByPath("Renamed.md.annotations.md"));
+  await page.waitForFunction(() => !!app.vault.getFileByPath("_marglow/Renamed.md.annotations.md"));
   await page.waitForFunction(() => document.querySelector(".marglow-file-tools > button:last-child")?.textContent === "Reading notes · 1");
-  assert.ok((await page.evaluate(async () => app.vault.read(app.vault.getFileByPath("Renamed.md.annotations.md")))).includes(`^${ids[0]}`));
+  assert.ok((await page.evaluate(async () => app.vault.read(app.vault.getFileByPath("_marglow/Renamed.md.annotations.md")))).includes(`^${ids[0]}`));
+  await page.waitForFunction(() => [...app.plugins.plugins.marglow.mounted.values()].some(mount => mount.session.source.path === "Renamed.md" && !mount.session.suspended));
   passed("Native source rename and companion association preservation");
+  await page.evaluate(async () => {
+    getSelection().removeAllRanges();
+    const session = [...app.plugins.plugins.marglow.mounted.values()].find(mount => mount.session.source.path === "Renamed.md").session;
+    await session.ui.finish();
+  });
   await pageTools.getByRole("button", { name: "Choose pink", exact: true }).click();
   await pageTools.getByRole("button", { name: "Highlight", exact: true }).click();
+  assert.equal(await pageTools.getByRole("button", { name: "Highlight", exact: true }).getAttribute("aria-pressed"), "true");
   await selectStrong();
-  await page.waitForFunction(async () => (await app.vault.read(app.vault.getFileByPath("Renamed.md.annotations.md"))).includes('"color":"pink"'));
+  await page.waitForFunction(async () => {
+    const session = [...app.plugins.plugins.marglow.mounted.values()].find(mount => mount.session.source.path === "Renamed.md")?.session;
+    return session && !session.pageBusy && getSelection().isCollapsed && (await app.vault.read(app.vault.getFileByPath("_marglow/Renamed.md.annotations.md"))).includes('"color":"pink"');
+  });
   await pageTools.getByRole("button", { name: "Highlight", exact: true }).click();
   assert.equal(await pageTools.getByRole("button", { name: "Highlight", exact: true }).getAttribute("aria-pressed"), "false");
   await pageTools.getByRole("button", { name: "Comment", exact: true }).click();
@@ -224,8 +234,10 @@ try {
   await page.waitForFunction(() => document.querySelectorAll(".marglow-highlight.is-active").length > 0);
   await page.getByRole("textbox", { name: "Comment", exact: true }).fill("Comment from the page toolbar.");
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await page.waitForFunction(async () => (await app.vault.read(app.vault.getFileByPath("Renamed.md.annotations.md"))).includes("Comment from the page toolbar."));
+  await page.waitForFunction(async () => (await app.vault.read(app.vault.getFileByPath("_marglow/Renamed.md.annotations.md"))).includes("Comment from the page toolbar."));
   await page.screenshot({ path: `${output}/page-toolbar-dark.png` });
+  const afterToolbar = await page.evaluate(async () => app.vault.read(app.vault.getFileByPath("_marglow/Renamed.md.annotations.md")));
+  assert.equal(afterToolbar.match(/oa:annotation:start/g)?.length, 2);
   passed("Page toolbar highlight mode and comment-before-selection workflow");
 
   await page.evaluate(async () => app.workspace.getLeaf(false).openFile(app.vault.getFileByPath("Smoke.pdf")));
@@ -326,7 +338,7 @@ try {
   await page.keyboard.press("Meta+Backspace");
   await highlightCount(0);
   await page.waitForFunction(() => document.querySelectorAll('.marglow-comment-card').length === 0);
-  assert.equal((await page.evaluate(async () => app.vault.read(app.vault.getFileByPath("Smoke.pdf.annotations.md")))).includes("oa:annotation:start"), false);
+  assert.equal((await page.evaluate(async () => app.vault.read(app.vault.getFileByPath("_marglow/Smoke.pdf.annotations.md")))).includes("oa:annotation:start"), false);
   passed("Mac command-delete removes the selected cross-page PDF annotation");
   await closeSidebar();
   await page.evaluate(async () => app.workspace.getLeaf(false).openFile(app.vault.getFileByPath("Renamed.md"), { state: { mode: "preview" } }));
@@ -349,7 +361,7 @@ try {
   await remaining.getByRole("button", { name: "Delete annotation", exact: true }).click();
   await page.waitForFunction(() => document.querySelectorAll('.marglow-comment-card').length === 0);
   await highlightCount(0);
-  assert.ok((await page.evaluate(async () => app.vault.read(app.vault.getFileByPath("Renamed.md.annotations.md")))).includes("Handwritten summary."));
+  assert.ok((await page.evaluate(async () => app.vault.read(app.vault.getFileByPath("_marglow/Renamed.md.annotations.md")))).includes("Handwritten summary."));
   passed("Markdown Delete shortcut, protected text editing, and card hover-delete preserve handwritten notes");
   assert.equal(await pageTools.getByRole("button", { name: "Highlight", exact: true }).locator("svg").count(), 1);
   assert.equal(await pageTools.getByRole("button", { name: "Underline", exact: true }).locator("svg").count(), 1);
@@ -365,7 +377,7 @@ try {
   assert.equal(underlineStyle.background, "rgba(0, 0, 0, 0)"); assert.equal(underlineStyle.border, "2px");
   await selectStrong();
   await pageTools.getByRole("button", { name: "Underline", exact: true }).click();
-  const mdText = await page.evaluate(async () => app.vault.read(app.vault.getFileByPath("Renamed.md.annotations.md")));
+  const mdText = await page.evaluate(async () => app.vault.read(app.vault.getFileByPath("_marglow/Renamed.md.annotations.md")));
   assert.equal(mdText.match(/oa:annotation:start/g).length, 2);
   const underlineCard = sidebar.locator('.marglow-comment-card').filter({ hasText: "Underline · no comment" });
   await underlineCard.locator('.marglow-comment-text').click();
@@ -388,6 +400,28 @@ try {
   passed("Icon tools, independent same-range underlines, inline comments and cross-page PDF underlines");
 
 
+  await page.evaluate(async () => {
+    await app.vault.createFolder("Folder");
+    await app.vault.create("Folder/Article.md", "Source text");
+    await app.plugins.plugins.marglow.store.save({ path: "Folder/Article.md", type: "markdown" }, {
+      id: "ann-folder-test", blockId: "ann-folder-test", color: "yellow", style: "highlight", quote: "Source text", comment: "Folder note",
+      anchor: { kind: "markdown", textStart: 0, prefix: "", suffix: "" }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+    });
+    await app.vault.create("Reference.md", "[[Folder/_marglow/Article.md.annotations#^ann-folder-test]]");
+  });
+  await page.waitForFunction(() => app.metadataCache.getFileCache(app.vault.getFileByPath("Folder/_marglow/Article.md.annotations.md"))?.blocks?.["ann-folder-test"]);
+  await page.evaluate(async () => app.fileManager.renameFile(app.vault.getAbstractFileByPath("Folder"), "Moved"));
+  await page.waitForFunction(async () => {
+    try { return (await app.plugins.plugins.marglow.store.load({ path: "Moved/Article.md", type: "markdown" })).note?.entries[0]?.annotation.id === "ann-folder-test"; }
+    catch { return false; }
+  });
+  await page.waitForFunction(() => {
+    const ref = app.vault.getFileByPath("Reference.md"), link = app.metadataCache.getFileCache(ref)?.links?.[0]?.link;
+    return link?.includes("#^ann-folder-test") && app.metadataCache.getFirstLinkpathDest(link.split("#")[0], ref.path)?.path === "Moved/_marglow/Article.md.annotations.md";
+  });
+  assert.equal(await readFile(`${vault}/Moved/Article.md`, "utf8"), "Source text");
+  assert.equal(await page.evaluate(() => !!app.vault.getFileByPath("Moved/Article.md.annotations.md")), false);
+  passed("Grouped reading-note folders move with sources and retain native block references");
   assert.equal(await readFile(`${vault}/Renamed.md`, "utf8"), markdown);
   assert.deepEqual(await readFile(`${vault}/Smoke.pdf`), pdf);
   assert.deepEqual(errors, []);

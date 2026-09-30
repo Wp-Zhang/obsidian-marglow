@@ -1,5 +1,5 @@
 import { Component, FuzzySuggestModal, MarkdownRenderer, MarkdownView, Notice, Platform, Plugin, type TFile, type View } from "obsidian";
-import { AnnotationStore } from "./store";
+import { AnnotationStore, readingNotePath } from "./store";
 import { isReadingNote, parseReadingNote, type Entry } from "./format";
 import { MarkdownAdapter } from "./markdown-adapter";
 import { PdfAdapter } from "./pdf-adapter";
@@ -34,6 +34,7 @@ class SourcePicker extends FuzzySuggestModal<TFile> {
 }
 
 export default class MarglowPlugin extends Plugin {
+  private sourceRenames = new Set<{ oldPath: string; newPath: string }>();
   private commentsSource: View | null = null;
   private store!: AnnotationStore;
   private mounted = new Map<View, Mounted>();
@@ -67,7 +68,14 @@ export default class MarglowPlugin extends Plugin {
       for (const mounted of this.mounted.values()) {
         if (mounted.session.source.path === oldPath || mounted.session.source.path.startsWith(`${oldPath}/`)) mounted.session.suspend();
       }
-      void this.store.renameSource(oldPath, file.path).catch(error => this.report(error instanceof Error ? error.message : String(error))).finally(() => this.schedule());
+      const newPath = file.path;
+      const operation = { oldPath, newPath };
+      this.sourceRenames.add(operation);
+      // Folder moves emit rename events before all child paths and link updates settle.
+      void (async () => {
+        await new Promise(resolve => setTimeout(resolve, 120));
+        if (!this.stopped) await this.store.renameSource(oldPath, newPath);
+      })().catch(error => this.report(error instanceof Error ? error.message : String(error))).finally(() => { this.sourceRenames.delete(operation); this.schedule(); });
     }));
     this.addCommand({ id: "open-reading-note", name: "Open reading notes", callback: () => { void this.openCurrentNote().catch(error => this.report(String(error))); } });
     this.addCommand({ id: "open-source", name: "Open source document", callback: () => { void this.openSource().catch(error => this.report(String(error))); } });
@@ -101,6 +109,7 @@ export default class MarglowPlugin extends Plugin {
       for (const view of views) {
         const file = (view as View & { file?: TFile }).file;
         if (!file || !this.app.vault.getFileByPath(file.path)) continue;
+        if ([...this.sourceRenames].some(rename => [rename.oldPath, rename.newPath].some(path => file.path === path || file.path.startsWith(`${path}/`)))) continue;
         const type = file.extension === "pdf" ? "pdf" : file.extension === "md" ? "markdown" : null;
         if (!type || type === "markdown" && (!(view instanceof MarkdownView) || view.getMode() !== "preview")) continue;
         const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
@@ -209,7 +218,7 @@ export default class MarglowPlugin extends Plugin {
 
   private async openNote(source: Source): Promise<void> {
     // Opening a damaged default note should remain possible so users can repair it.
-    const defaultFile = this.app.vault.getFileByPath(`${source.path}.annotations.md`);
+    const defaultFile = this.app.vault.getFileByPath(readingNotePath(source.path)) ?? this.app.vault.getFileByPath(`${source.path}.annotations.md`);
     const file = defaultFile ?? (await this.store.load(source)).file;
     if (!file) { this.report("Create a highlight or comment first to start reading notes."); return; }
     await this.app.workspace.getLeaf("tab").openFile(file);

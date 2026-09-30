@@ -2,13 +2,13 @@
 
 English · [简体中文](docs/README.zh-CN.md)
 
-Marglow adds in-place highlights and comments to Markdown and PDF reading in Obsidian. Each source has an editable Markdown reading note beside it; your source document stays unchanged.
+Marglow adds in-place highlights and comments to Markdown and PDF reading in Obsidian. Each source has an editable Markdown reading note in its directory’s `_marglow/` folder; your source document stays unchanged.
 
 The name combines **margin** and **glow**.
 
 ## Status
 
-**0.1.6 is an initial development build**, not a Community Plugins release. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
+**0.1.7 is an initial development build**, not a Community Plugins release. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
 
 The Markdown page toolbar stays flush with the top of the reading pane. A persistent page toolbar offers color selection, icon tools for Highlight, Underline, and Comment, and Reading notes. Choose a color before selecting text; activate Highlight to mark subsequent selections, or Comment to write on the next selection. Click the active tool again to turn it off. Floating selection tools remain available.
 
@@ -23,7 +23,7 @@ The Markdown page toolbar stays flush with the top of the reading pane. A persis
 - Text-selectable PDFs, with multiple page segments under one annotation and page-attached highlights that follow scrolling, zoom, and rotation.
 - Independent overlapping annotations; exact selections reuse an existing annotation of the same style.
 - Autosave comments when clicking or tapping outside the composer. Save/cancel buttons, `Cmd + Enter`, and `Esc` are available.
-- A companion `source.md.annotations.md` or `source.pdf.annotations.md` note containing readable quotes, comments, stable block IDs, and hidden positioning metadata.
+- A companion `_marglow/source.md.annotations.md` or `_marglow/source.pdf.annotations.md` note containing readable quotes, comments, stable block IDs, and hidden positioning metadata.
 - Direct comment edits and complete-entry deletions in the companion note reflected in the source view.
 - Manual reassociation of unlocated annotations and relinking a reading note to a replacement source.
 - Local file validation and updates that preserve handwritten notes and unrelated entries.
@@ -57,12 +57,14 @@ For iOS, place those same three files in the target Vault's plugin directory usi
 
 Navigation uses verified locations. If a long Markdown document has not rendered the target passage yet, scroll to it before retrying; Marglow reports this rather than guessing a location.
 
+New reading notes live in an ordinary `_marglow/` subfolder of each source directory. Root-level sources use `_marglow/` at the Vault root. Source extensions stay in note names to distinguish Markdown from PDF. Existing sidecar notes remain supported and are edited in place. You can move an existing reading note into `_marglow/` through Obsidian; its source metadata keeps the association. Keep one canonical reading note per source.
+
 Reading notes are created only when the first annotation is saved. To delete an entry manually, remove everything from its `oa:annotation:start` marker through the matching `oa:annotation:end` marker. Keep metadata and IDs intact when editing just a comment.
 
 Native references to a saved quote work as ordinary Obsidian block links:
 
 ```markdown
-[[source.md.annotations#^ann-<saved-id>]]
+[[folder/_marglow/source.md.annotations#^ann-<saved-id>]]
 ```
 
 Use an actual block ID from the companion note, not the placeholder above. Removing an annotation also removes its block reference target. Other edits and reassociation keep its ID stable.

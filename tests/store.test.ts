@@ -1,12 +1,13 @@
 import type { App, TFile } from "obsidian";
 import { describe, expect, it } from "vitest";
-import { AnnotationStore } from "../src/store";
+import { AnnotationStore, readingNotePath } from "../src/store";
 import { createReadingNote, parseReadingNote, updateEntry } from "../src/format";
 import { annotation, source } from "./helpers";
 
 function fixture() {
   const files = new Map<string, { file: TFile; text: string }>();
   const writes: string[] = [];
+  const folders = new Map<string, { path: string; children: unknown[] }>();
   let beforeProcess: (() => void) | undefined;
   const put = (path: string, text: string) => {
     const file = { path, extension: path.split(".").pop(), stat: { size: text.length, mtime: 1 } } as TFile;
@@ -18,7 +19,8 @@ function fixture() {
     vault: {
       getMarkdownFiles: () => [...files.values()].map(item => item.file).filter(file => file.extension === "md"),
       getFileByPath: (path: string) => files.get(path)?.file ?? null,
-      getAbstractFileByPath: (path: string) => files.get(path)?.file ?? null,
+      getAbstractFileByPath: (path: string) => files.get(path)?.file ?? folders.get(path) ?? null,
+      createFolder: async (path: string) => { if (files.has(path) || folders.has(path)) throw new Error("Path exists"); const folder = { path, children: [] }; folders.set(path, folder); return folder; },
       read: async (file: TFile) => files.get(file.path)!.text,
       create: async (path: string, text: string) => { if (files.has(path)) throw new Error("File exists"); writes.push(path); return put(path, text); },
       process: async (file: TFile, update: (text: string) => string) => {
@@ -44,7 +46,7 @@ describe("safe companion-note storage", () => {
     const { store, files, writes } = fixture();
     const original = files.get(source.path)!.text;
     await store.save(source, annotation());
-    expect(writes).toEqual([`${source.path}.annotations.md`]);
+    expect(writes).toEqual([readingNotePath(source.path)]);
     expect(files.get(source.path)!.text).toBe(original);
     expect((await store.load(source)).note!.entries).toHaveLength(1);
   });
@@ -53,23 +55,23 @@ describe("safe companion-note storage", () => {
     const { store, files, setBeforeProcess } = fixture();
     await store.save(source, annotation());
     const original = (await store.load(source)).note!.entries[0]!;
-    setBeforeProcess(() => { files.get(`${source.path}.annotations.md`)!.text += "\nNew handwritten paragraph."; });
+    setBeforeProcess(() => { files.get(readingNotePath(source.path))!.text += "\nNew handwritten paragraph."; });
     await store.save(source, { ...annotation(), comment: "Edited" }, original.raw);
-    expect(files.get(`${source.path}.annotations.md`)!.text).toContain("New handwritten paragraph.");
+    expect(files.get(readingNotePath(source.path))!.text).toContain("New handwritten paragraph.");
   });
 
   it("refuses to overwrite a concurrently edited annotation and retains external content", async () => {
     const { store, files, setBeforeProcess } = fixture();
     await store.save(source, annotation());
     const snapshot = (await store.load(source)).note!.entries[0]!.raw;
-    setBeforeProcess(() => { const file = files.get(`${source.path}.annotations.md`)!; file.text = file.text.replace("My thought.", "External thought."); });
+    setBeforeProcess(() => { const file = files.get(readingNotePath(source.path))!; file.text = file.text.replace("My thought.", "External thought."); });
     await expect(store.save(source, { ...annotation(), comment: "Local thought." }, snapshot)).rejects.toThrow(/changed/);
-    expect(files.get(`${source.path}.annotations.md`)!.text).toContain("External thought.");
+    expect(files.get(readingNotePath(source.path))!.text).toContain("External thought.");
   });
 
   it("protects an ordinary note occupying the default companion filename", async () => {
     const { store, put, writes } = fixture();
-    put(`${source.path}.annotations.md`, "My unrelated personal note.");
+    put(readingNotePath(source.path), "My unrelated personal note.");
     await expect(store.save(source, annotation())).rejects.toThrow();
     expect(writes).toEqual([]);
   });
@@ -78,9 +80,9 @@ describe("safe companion-note storage", () => {
     const { store, files } = fixture();
     await store.save(source, annotation());
     const snapshot = (await store.load(source)).note!.entries[0]!.raw;
-    files.delete(`${source.path}.annotations.md`);
+    files.delete(readingNotePath(source.path));
     await expect(store.save(source, annotation(), snapshot)).rejects.toThrow(/deleted/);
-    expect(files.has(`${source.path}.annotations.md`)).toBe(false);
+    expect(files.has(readingNotePath(source.path))).toBe(false);
   });
 
   it("finds a manually moved companion by source metadata and rejects multiple candidates", async () => {
@@ -95,43 +97,43 @@ describe("safe companion-note storage", () => {
   it("renames a companion while preserving identifiers and user notes", async () => {
     const { store, files } = fixture();
     await store.save(source, annotation());
-    files.get(`${source.path}.annotations.md`)!.text += "\nMy summary.";
+    files.get(readingNotePath(source.path))!.text += "\nMy summary.";
     await store.renameSource(source.path, "Moved/new.md");
-    const note = parseReadingNote(files.get("Moved/new.md.annotations.md")!.text);
+    const note = parseReadingNote(files.get(readingNotePath("Moved/new.md"))!.text);
     expect(note.source.path).toBe("Moved/new.md");
     expect(note.entries[0]!.annotation.id).toBe(annotation().id);
-    expect(files.get("Moved/new.md.annotations.md")!.text).toContain("My summary.");
+    expect(files.get(readingNotePath("Moved/new.md"))!.text).toContain("My summary.");
   });
 
   it("does not overwrite a note at the new destination during a rename", async () => {
     const { store, files, put } = fixture();
     await store.save(source, annotation());
-    put("Moved/new.md.annotations.md", "Existing user content.");
+    put(readingNotePath("Moved/new.md"), "Existing user content.");
     await expect(store.renameSource(source.path, "Moved/new.md")).rejects.toThrow(/occupied/);
-    expect(files.get("Moved/new.md.annotations.md")!.text).toBe("Existing user content.");
-    expect(files.has(`${source.path}.annotations.md`)).toBe(true);
+    expect(files.get(readingNotePath("Moved/new.md"))!.text).toBe("Existing user content.");
+    expect(files.has(readingNotePath(source.path))).toBe(true);
   });
 
   it("explicitly relinks a missing source while preserving annotations and free notes", async () => {
     const { store, files, put } = fixture();
     await store.save(source, annotation());
-    const file = files.get(`${source.path}.annotations.md`)!.file;
+    const file = files.get(readingNotePath(source.path))!.file;
     files.get(file.path)!.text += "\nA handwritten summary.";
     files.delete(source.path);
     put("Replacement.md", "New source content.");
     await store.relink(file, { type: "markdown", path: "Replacement.md" });
-    const note = parseReadingNote(files.get("Replacement.md.annotations.md")!.text);
+    const note = parseReadingNote(files.get(readingNotePath("Replacement.md"))!.text);
     expect(note.source.path).toBe("Replacement.md");
     expect(note.entries[0]!.annotation.id).toBe(annotation().id);
-    expect(files.get("Replacement.md.annotations.md")!.text).toContain("A handwritten summary.");
+    expect(files.get(readingNotePath("Replacement.md"))!.text).toContain("A handwritten summary.");
   });
 
   it("rejects relinking to a source with another reading note", async () => {
     const { store, files, put } = fixture();
     await store.save(source, annotation());
     put("Replacement.md", "Source content.");
-    put("Replacement.md.annotations.md", createReadingNote({ type: "markdown", path: "Replacement.md" }));
-    const file = files.get(`${source.path}.annotations.md`)!.file;
+    put(readingNotePath("Replacement.md"), createReadingNote({ type: "markdown", path: "Replacement.md" }));
+    const file = files.get(readingNotePath(source.path))!.file;
     const before = files.get(file.path)!.text;
     await expect(store.relink(file, { type: "markdown", path: "Replacement.md" })).rejects.toThrow(/already has/);
     expect(files.get(file.path)!.text).toBe(before);
@@ -150,9 +152,50 @@ describe("safe companion-note storage", () => {
   it("rejects using a reading note as its own source even before metadata indexing", async () => {
     const { store, files } = fixture();
     await store.save(source, annotation());
-    const file = files.get(`${source.path}.annotations.md`)!.file;
+    const file = files.get(readingNotePath(source.path))!.file;
     const before = files.get(file.path)!.text;
     await expect(store.relink(file, { type: "markdown", path: file.path })).rejects.toThrow(/cannot be used/);
     expect(files.get(file.path)!.text).toBe(before);
   });
+});
+
+it("keeps legacy sidecars canonical without creating a second note", async () => {
+  const { store, put, files } = fixture();
+  const path = `${source.path}.annotations.md`;
+  put(path, updateEntry(createReadingNote(source), annotation()));
+  const entry = (await store.load(source)).note!.entries[0]!;
+  await store.save(source, { ...entry.annotation, comment: "Legacy edited" }, entry.raw);
+  expect(files.get(path)!.text).toContain("Legacy edited");
+  expect(files.has(readingNotePath(source.path))).toBe(false);
+  await store.renameSource(source.path, "Moved/new.md");
+  expect(files.has("Moved/new.md.annotations.md")).toBe(true);
+});
+
+it("does not overwrite a file occupying the _marglow directory", async () => {
+  const { store, put, writes, files } = fixture();
+  put("Research/_marglow", "Unrelated file");
+  await expect(store.save(source, annotation())).rejects.toThrow(/occupied/);
+  expect(writes).toEqual([]);
+  expect(files.get("Research/_marglow")!.text).toBe("Unrelated file");
+});
+
+it("separates matching Markdown/PDF names and root sources", async () => {
+  const { store, put, files } = fixture();
+  put("Research/article.pdf", "PDF bytes");
+  put("Root.md", "Markdown bytes");
+  await store.save(source, annotation());
+  await store.save({ path: "Research/article.pdf", type: "pdf" }, { ...annotation("ann-pdf"), anchor: { kind: "pdf", sourceFingerprint: "fingerprint", segments: [{ page: 1, quote: annotation().quote, rects: [[0, 0, 10, 10]] }] } });
+  await store.save({ path: "Root.md", type: "markdown" }, annotation("ann-root"));
+  expect(files.has("Research/_marglow/article.md.annotations.md")).toBe(true);
+  expect(files.has("Research/_marglow/article.pdf.annotations.md")).toBe(true);
+  expect(files.has("_marglow/Root.md.annotations.md")).toBe(true);
+});
+
+it("pauses writes when both layouts contain notes for the source", async () => {
+  const { store, put, writes } = fixture();
+  const text = updateEntry(createReadingNote(source), annotation());
+  put(`${source.path}.annotations.md`, text);
+  put(readingNotePath(source.path), text);
+  await expect(store.save(source, annotation())).rejects.toThrow(/Multiple/);
+  expect(writes).toEqual([]);
 });

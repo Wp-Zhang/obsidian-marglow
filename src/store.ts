@@ -2,6 +2,12 @@ import type { App, TFile } from "obsidian";
 import type { Annotation, Source } from "./model";
 import { NoteError, createReadingNote, deleteEntry, isReadingNote, parseReadingNote, replaceSource, updateEntry, type ReadingNote } from "./format";
 
+export function readingNotePath(sourcePath: string): string {
+  const slash = sourcePath.lastIndexOf("/");
+  const directory = slash < 0 ? "" : sourcePath.slice(0, slash + 1);
+  return `${directory}_marglow/${sourcePath.slice(slash + 1)}.annotations.md`;
+}
+
 export interface LoadedNote {
   file: TFile | null;
   note: ReadingNote | null;
@@ -31,8 +37,10 @@ export class AnnotationStore {
       return frontmatter?.annotation_schema === 1 && typeof link === "string" && link.startsWith("[[") && link.endsWith("]]") &&
         this.resolveSource({ ...source, path: link.slice(2, -2) }, file).path === source.path;
     });
-    const expected = this.app.vault.getFileByPath(`${source.path}.annotations.md`);
-    if (expected && !matches.includes(expected)) matches.unshift(expected);
+    for (const path of [readingNotePath(source.path), `${source.path}.annotations.md`]) {
+      const expected = this.app.vault.getFileByPath(path);
+      if (expected && !matches.includes(expected)) matches.unshift(expected);
+    }
     return matches;
   }
 
@@ -46,12 +54,28 @@ export class AnnotationStore {
     return { file, note };
   }
 
+  private async ensureNoteFolder(path: string): Promise<void> {
+    const folder = path.slice(0, path.lastIndexOf("/"));
+    const existing = this.app.vault.getAbstractFileByPath(folder);
+    if (existing) {
+      if (!("children" in existing)) throw new NoteError("The _marglow folder path is occupied by a file. It will not be overwritten.");
+      return;
+    }
+    try { await this.app.vault.createFolder(folder); }
+    catch (error) {
+      const created = this.app.vault.getAbstractFileByPath(folder);
+      if (!created || !("children" in created)) throw error;
+    }
+  }
+
   async save(source: Source, annotation: Annotation, expectedRaw?: string): Promise<void> {
     let { file } = await this.load(source);
     if (!file) {
       if (expectedRaw !== undefined) throw new NoteError("The reading note was deleted while you were editing. Your input has been kept.");
       // Create the first note with its annotation in one write, without an empty intermediate note.
-      await this.app.vault.create(`${source.path}.annotations.md`, updateEntry(createReadingNote(source), annotation));
+      const path = readingNotePath(source.path);
+      await this.ensureNoteFolder(path);
+      await this.app.vault.create(path, updateEntry(createReadingNote(source), annotation));
       return;
     }
     await this.app.vault.process(file, current => {
@@ -79,8 +103,9 @@ export class AnnotationStore {
     if (targetSource.extension === "md" && isReadingNote(await this.app.vault.read(targetSource))) throw new NoteError("A reading note cannot be used as a source document.");
     const candidates = this.candidates(source).filter(candidate => candidate.path !== file.path);
     if (candidates.length) throw new NoteError("This source already has a reading note. Relinking would create an ambiguous association.");
-    const target = `${source.path}.annotations.md`;
+    const target = readingNotePath(source.path);
     if (file.path !== target && this.app.vault.getAbstractFileByPath(target)) throw new NoteError("The destination is occupied; no file was changed.");
+    await this.ensureNoteFolder(target);
     await this.app.vault.process(file, current => {
       const note = parseReadingNote(current);
       if (note.documentId !== snapshot.documentId || note.source.path !== snapshot.source.path) throw new NoteError("The note's source changed before relinking.");
@@ -93,10 +118,10 @@ export class AnnotationStore {
     const notes = this.app.vault.getMarkdownFiles().filter(file => {
       const metadata = this.app.metadataCache.getFileCache(file)?.frontmatter;
       const source = metadata?.annotation_source;
-      if (metadata?.annotation_schema !== 1 || typeof source !== "string") return file.path === `${oldPath}.annotations.md`;
+      if (metadata?.annotation_schema !== 1 || typeof source !== "string") return (file.path === `${oldPath}.annotations.md` || file.path === readingNotePath(oldPath));
       const raw = source.slice(2, -2);
       const linked = this.resolveSource({ path: raw, type: "markdown" }, file).path;
-      return linked === oldPath || linked.startsWith(`${oldPath}/`) || linked === newPath || linked.startsWith(`${newPath}/`) || file.path === `${oldPath}.annotations.md`;
+      return linked === oldPath || linked.startsWith(`${oldPath}/`) || linked === newPath || linked.startsWith(`${newPath}/`) || (file.path === `${oldPath}.annotations.md` || file.path === readingNotePath(oldPath));
     });
     for (const file of notes) {
       const text = await this.app.vault.read(file);
@@ -107,9 +132,11 @@ export class AnnotationStore {
       else if (path !== newPath) continue;
       const source = { ...parsed.source, path };
       await this.app.vault.process(file, current => replaceSource(current, source));
-      const target = `${path}.annotations.md`;
+      // Keep legacy sidecars in their original layout until the user moves them.
+      const target = file.path === `${oldPath}.annotations.md` || file.path === `${path}.annotations.md` ? `${path}.annotations.md` : readingNotePath(path);
       if (file.path !== target) {
         if (this.app.vault.getAbstractFileByPath(target)) throw new NoteError("The reading-note destination is occupied. The existing note was retained with its updated source link.");
+        if (target === readingNotePath(path)) await this.ensureNoteFolder(target);
         await this.app.fileManager.renameFile(file, target);
       }
     }

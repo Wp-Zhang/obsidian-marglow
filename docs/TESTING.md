@@ -5,7 +5,7 @@ Use a dedicated Vault with synthetic Markdown and PDF material. Never run these 
 ## Current verification
 
 - Automated checks cover Markdown round trips, direct edits, deletion, local-update preservation, stale-write rejection, malformed files, duplicate IDs, source association, text anchoring, PDF page transforms, cross-page selection, and composer persistence failures.
-- Mac smoke checks use actual Obsidian 1.8.10 with a private test profile. The 22 checks exercise visible round color swatches in light/dark themes, persistent page tools, active/hover distinction, native right-sidebar tabs, document switching and focus association, Markdown/PDF persistence, source updates, per-frame PDF scroll alignment, zoom/rotation geometry, and plugin reloads.
+- Mac smoke checks use actual Obsidian 1.8.10 with a private test profile. The 23 checks exercise visible round color swatches in light/dark themes, persistent page tools, active/hover distinction, native right-sidebar tabs, document switching and focus association, Markdown/PDF persistence, source updates, per-frame PDF scroll alignment, zoom/rotation geometry, and plugin reloads.
 - iOS physical-device selection, native menus, keyboard placement, and reopening remain unverified until the checklist below is run on a device. A desktop viewport or DOM test is not an iOS acceptance test.
 
 Run `npm run check`, `npm run package`, and, on Mac, `npm run smoke:mac`. The smoke script creates isolated fixtures and checks source-byte preservation before it exits. Inspect its screenshots in the printed local output directory.
@@ -29,6 +29,7 @@ Run `npm run check`, `npm run package`, and, on Mac, `npm run smoke:mac`. The sm
 - [ ] Save a PDF selection spanning two loaded pages. Check every selected page, not only the first.
 - [ ] Zoom, rotate, resize, and scroll PDF pages out of and back into view; highlights follow the selected text.
 - [ ] Select across an unloaded page or a PDF without a text layer: no truncated annotation is written.
+- [ ] Create notes in `_marglow/` for root and nested sources, including matching Markdown/PDF names. Verify occupied paths are preserved, legacy notes stay canonical, and moving a reading note through Obsidian keeps association and block links.
 - [ ] Close and reopen the source and Obsidian; IDs and locations survive.
 - [ ] Insert text before a Markdown quotation; its annotation relocates. Remove or ambiguously duplicate the quotation; its entry is retained without an incorrect highlight.
 - [ ] Use Reassociate an annotation, choose replacement text, and confirm the ID, comment, and color remain stable.
