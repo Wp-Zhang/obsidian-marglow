@@ -1,0 +1,37 @@
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Dependencies and generated output
+node_modules/
+dist/
+build/
+coverage/
+main.js
+*.tsbuildinfo
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
+.obsidian/
+.idea/
+.vscode/
+
+# Local design documents and development material
+/dev/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+~$*
+
+# Local test vaults and generated test output
+test-vault/
+test-vaults/
+playwright-report/
+test-results/
