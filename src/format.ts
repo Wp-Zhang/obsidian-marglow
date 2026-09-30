@@ -105,11 +105,11 @@ export function parseReadingNote(text: string): ReadingNote {
       if (!ID.test(id)) throw new NoteError("Invalid annotation identifier.");
       if (match[1] === "start") {
         if (open) throw new NoteError("Nested or broken annotation boundaries.");
-        open = { id, start: match.index! };
+        open = { id, start: match.index };
         continue;
       }
       if (!open || open.id !== id) throw new NoteError("Broken annotation boundaries; no annotations have been deleted.");
-      const end = match.index! + match[0].replace(/\r$/, "").length;
+      const end = match.index + match[0].replace(/\r$/, "").length;
       const raw = text.slice(open.start, end);
       const metaMatches = [...raw.matchAll(/^%%\r?\noa:meta\r?\n([^\r\n]+)\r?\n%%\r?$/gm)];
       if (metaMatches.length !== 1) throw new NoteError(`Missing or duplicate metadata for ${id}.`);
@@ -120,14 +120,14 @@ export function parseReadingNote(text: string): ReadingNote {
       const commentEnd = `%% oa:comment:end ${id} %%`;
       const starts = [...raw.matchAll(new RegExp(`^${commentStart}\\r?$`, "gm"))];
       const ends = [...raw.matchAll(new RegExp(`^${commentEnd}\\r?$`, "gm"))];
-      if (starts.length !== 1 || ends.length !== 1 || starts[0]!.index! >= ends[0]!.index!) throw new NoteError(`Broken comment boundaries for ${id}.`);
-      const bodyStart = metaMatches[0]!.index! + metaMatches[0]![0].length;
-      const body = raw.slice(bodyStart, starts[0]!.index!);
+      if (starts.length !== 1 || ends.length !== 1 || starts[0]!.index >= ends[0]!.index) throw new NoteError(`Broken comment boundaries for ${id}.`);
+      const bodyStart = metaMatches[0]!.index + metaMatches[0]![0].length;
+      const body = raw.slice(bodyStart, starts[0]!.index);
       const blockLines = [...body.matchAll(/^\^([a-zA-Z0-9-]+)\r?$/gm)];
       if (blockLines.length !== 1 || blockLines[0]![1] !== metadata.blockId) throw new NoteError(`Missing or changed block ID for ${id}.`);
       const quote = plainText(body.split(/\r?\n/).filter(line => line.startsWith("> ") || line === ">").map(line => line.replace(/^> ?/, "").replace(/\\([\\`*_[\]<>])/g, "$1")).join("\n"));
       if (!quote.trim()) throw new NoteError(`Missing quotation for ${id}.`);
-      const comment = plainText(raw.slice(starts[0]!.index! + starts[0]![0].length, ends[0]!.index!).replace(/^\r?\n\r?\n/, "").replace(/\r?\n\r?\n$/, ""));
+      const comment = plainText(raw.slice(starts[0]!.index + starts[0]![0].length, ends[0]!.index).replace(/^\r?\n\r?\n/, "").replace(/\r?\n\r?\n$/, ""));
       ids.add(id);
       blocks.add(metadata.blockId);
       entries.push({ start: open.start, end, raw, annotation: { ...metadata, quote, comment } });

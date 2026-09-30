@@ -2,11 +2,11 @@ import { COLORS, type Annotation, type CapturedSelection, type Color } from "./m
 import { setAnnotationActionIcon } from "./action-icons";
 
 export interface Actions {
-  highlight(color: Color, comment?: string): Promise<void>;
-  comment(text: string): Promise<void>;
-  delete?(): Promise<void>;
-  relocate?(): Promise<void>;
-  cancelRelocate?(): void;
+  highlight(this: void, color: Color, comment?: string): Promise<void>;
+  comment(this: void, text: string): Promise<void>;
+  delete?(this: void): Promise<void>;
+  relocate?(this: void): Promise<void>;
+  cancelRelocate?(this: void): void;
 }
 
 const SWATCHES: Record<Color, string> = { yellow: "#f6cd53", green: "#72c890", blue: "#79b7ed", pink: "#e997b7" };
@@ -206,7 +206,6 @@ export class AnnotationUI {
     const top = viewport?.offsetTop ?? 0;
     const height = viewport?.height ?? win.innerHeight;
     if (this.mobile && this.element.classList.contains("marglow-composer")) {
-      this.element.style.left = "12px";
       this.element.style.width = `${Math.max(0, width - 24)}px`;
       this.element.style.top = `${Math.max(top + 12, top + height - this.element.offsetHeight - 16)}px`;
     } else {

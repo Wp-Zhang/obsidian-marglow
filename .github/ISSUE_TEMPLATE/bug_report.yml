@@ -1,0 +1,22 @@
+name: Bug report
+description: Report an issue found while using Marglow.
+body:
+  - type: input
+    id: versions
+    attributes:
+      label: Versions and device
+      description: Marglow version, Obsidian version, OS, and device.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Describe what happened and what you expected. Mention Markdown/PDF and the active view.
+    validations:
+      required: true
+  - type: textarea
+    id: sample
+    attributes:
+      label: Optional sample or screenshot
+      description: Use a small synthetic document if possible. Remove private content before sharing.

@@ -33,7 +33,7 @@ export class AnnotationStore {
   private candidates(source: Source): TFile[] {
     const matches = this.app.vault.getMarkdownFiles().filter(file => {
       const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
-      const link = frontmatter?.annotation_source;
+      const link: unknown = frontmatter?.annotation_source;
       return frontmatter?.annotation_schema === 1 && typeof link === "string" && link.startsWith("[[") && link.endsWith("]]") &&
         this.resolveSource({ ...source, path: link.slice(2, -2) }, file).path === source.path;
     });
@@ -80,7 +80,7 @@ export class AnnotationStore {
     }
     await this.app.vault.process(file, current => {
       const parsed = parseReadingNote(current);
-      if (this.resolveSource(parsed.source, file!).path !== source.path || parsed.source.type !== source.type) throw new NoteError("The note's source changed while you were editing.");
+      if (this.resolveSource(parsed.source, file).path !== source.path || parsed.source.type !== source.type) throw new NoteError("The note's source changed while you were editing.");
       if (expectedRaw === undefined && parsed.entries.some(entry => entry.annotation.id === annotation.id)) throw new NoteError("This annotation already exists. Reopen it before saving.");
       return updateEntry(current, annotation, expectedRaw);
     });
@@ -117,7 +117,7 @@ export class AnnotationStore {
   async renameSource(oldPath: string, newPath: string): Promise<void> {
     const notes = this.app.vault.getMarkdownFiles().filter(file => {
       const metadata = this.app.metadataCache.getFileCache(file)?.frontmatter;
-      const source = metadata?.annotation_source;
+      const source: unknown = metadata?.annotation_source;
       if (metadata?.annotation_schema !== 1 || typeof source !== "string") return (file.path === `${oldPath}.annotations.md` || file.path === readingNotePath(oldPath));
       const raw = source.slice(2, -2);
       const linked = this.resolveSource({ path: raw, type: "markdown" }, file).path;

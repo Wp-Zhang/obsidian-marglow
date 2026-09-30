@@ -1,10 +1,10 @@
 {
   "name": "obsidian-marglow",
-  "version": "0.1.13",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Local-first Markdown and PDF highlights and comments for Obsidian.",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "engines": {
     "node": ">=22"
   },
@@ -14,9 +14,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build": "npm run typecheck && node esbuild.config.mjs",
-    "check": "npm run typecheck && npm test",
+    "check": "npm run typecheck && npm run lint && npm test",
     "package": "npm run build && node scripts/package.mjs",
-    "smoke:mac": "npm run package && node scripts/smoke-obsidian.mjs"
+    "smoke:mac": "npm run package && node scripts/smoke-obsidian.mjs",
+    "lint": "eslint src",
+    "verify:release": "node scripts/validate-release.mjs"
   },
   "overrides": {
     "moment": "^2.31.0"
@@ -24,10 +26,12 @@
   "devDependencies": {
     "@types/node": "^26.6.3",
     "esbuild": "^0.28.2",
+    "eslint": "^9.39.5",
+    "eslint-plugin-obsidianmd": "^0.4.2",
     "jsdom": "^29.1.1",
     "obsidian": "^1.13.1",
     "playwright": "^1.63.0",
-    "typescript": "^7.0.2",
+    "typescript": "^5.9.3",
     "vitest": "^4.1.11"
   }
 }

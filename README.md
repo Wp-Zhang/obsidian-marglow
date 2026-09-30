@@ -20,7 +20,7 @@ The name combines **margin** and **glow**.
 
 ## Status
 
-**0.1.13 is an initial development build**, not a Community Plugins release. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
+**0.2.0 is the first public beta**, available from [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.0). It has not yet been reviewed or listed in Obsidian Community Plugins. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
 
 The Markdown page toolbar stays flush with the top of the reading pane. A persistent page toolbar offers color selection, icon tools for Highlight, Underline, and Comment, and Reading notes. Reading notes opens the native right sidebar without opening another document tab. Choose a color before selecting text; activate Highlight to mark subsequent selections, or Comment to write on the next selection. Click the active tool again to turn it off. Floating selection tools remain available.
 
@@ -41,6 +41,14 @@ The Markdown page toolbar stays flush with the top of the reading pane. A persis
 - Local file validation and updates that preserve handwritten notes and unrelated entries.
 
 Windows, Markdown editing-view annotations, OCR, dedicated Copy link/Copy quote actions, PDF write-back, and advanced annotation dashboards are outside this initial scope.
+
+## Install the public beta
+
+Download `marglow-0.2.0.zip` from the [0.2.0 release](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.0), extract it, and copy the three files inside `marglow/` into `<vault>/.obsidian/plugins/marglow/`. Reload Obsidian and enable **Marglow** in Community plugins settings. Individual `main.js`, `manifest.json`, and `styles.css` downloads are also available.
+
+With [BRAT](https://github.com/TfTHacker/obsidian42-brat), add `Wp-Zhang/obsidian-marglow` and allow prerelease versions, or select version `0.2.0` explicitly. Start in a test Vault. iOS uses the same files and your existing sync workflow; device acceptance is still pending.
+
+Report issues through [GitHub Issues](https://github.com/Wp-Zhang/obsidian-marglow/issues/new/choose) with versions, device, reproduction steps, and a sample with private content removed.
 
 ## Install a development build
 
@@ -118,3 +126,7 @@ The Mac smoke test requires Obsidian at `/Applications/Obsidian.app` or an `OBSI
 See [the manual acceptance checklist](docs/TESTING.md) for device-specific verification and [AGENTS.md](AGENTS.md) for development principles. The detailed design document remains local under ignored `dev/` and is not included in Git.
 
 The runtime has no bundled third-party dependencies beyond the Obsidian API supplied by the host. Development references are used for API research only; their code is not shipped.
+
+## License
+
+[MIT](LICENSE).

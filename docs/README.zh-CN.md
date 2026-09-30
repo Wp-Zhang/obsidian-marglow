@@ -20,7 +20,7 @@ Marglow 为 Obsidian 中的 Markdown 与 PDF 提供就地高亮和评论。每�
 
 ## 当前状态
 
-**0.1.13 是初版开发构建**，尚未发布到社区插件目录。Mac 集成已在 Obsidian 1.8.10 的独立测试 Vault 中验证。代码采用 iOS 可用的运行时能力并提供触屏控件，但 **iOS 真机验收尚未完成**。PDF 集成使用 Obsidian 查看器内部接口，宿主更新后可能需要适配。
+**0.2.0 是首个 public beta**，可从 [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.0) 安装，尚未通过 Obsidian 社区目录审核。Mac 集成已在 Obsidian 1.8.10 的独立测试 Vault 中验证。代码采用 iOS 可用的运行时能力并提供触屏控件，但 **iOS 真机验收尚未完成**。PDF 集成使用 Obsidian 查看器内部接口，宿主更新后可能需要适配。
 
 Markdown 工具栏固定在阅读区域顶部，不随正文留白下移。页面常驻工具栏提供颜色选择、荧光笔 Highlight／下划线 Underline／消息框 Comment 图标和 Reading notes。Reading notes 直接展开原生右侧栏，不再新开文档标签页。可先选颜色，再开启 Highlight 标注后续选区；也可先点 Comment，再选择文字输入评论。再次点击已开启的工具即可关闭模式，选区浮动工具栏仍然保留。
 
@@ -41,6 +41,14 @@ Markdown 工具栏固定在阅读区域顶部，不随正文留白下移。页�
 - 局部写入与格式校验，保留用户手写笔记及其他条目。
 
 Windows、Markdown 编辑视图标注、OCR、专用 Copy link／Copy quote、PDF 批注写回和高级标注管理不属于本轮范围。
+
+## 安装 public beta
+
+从 [0.2.0 发布页](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.0) 下载 `marglow-0.2.0.zip`，解压后将 `marglow/` 中的三个文件放到 `<vault>/.obsidian/plugins/marglow/` 中，然后重载 Obsidian 并在第三方插件设置中启用 **Marglow**。也可以分别下载 `main.js`、`manifest.json` 和 `styles.css`。
+
+使用 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 时，添加仓库 `Wp-Zhang/obsidian-marglow`，允许预发布版本，或明确选择版本 `0.2.0`。首次体验请使用测试 Vault。iOS 使用同样的文件和现有同步方式；真机验收尚未完成。
+
+发现问题请在 [GitHub Issues](https://github.com/Wp-Zhang/obsidian-marglow/issues/new/choose) 提供版本、设备、复现步骤和去除隐私信息的示例。
 
 ## 安装开发版本
 
@@ -118,3 +126,7 @@ Mac 测试脚本默认使用 `/Applications/Obsidian.app`，也可通过 `OBSIDI
 设备验收见 [测试清单](TESTING.md)，开发原则见 [AGENTS.md](../AGENTS.md)。完整设计文档仅存于本地被忽略的 `dev/`，不提交到 Git。
 
 运行时除宿主提供的 Obsidian API 外，不捆绑第三方依赖。开发参考资料只用于接口研究，其代码不随插件发布。
+
+## 许可证
+
+[MIT](../LICENSE).

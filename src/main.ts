@@ -39,7 +39,7 @@ export default class MarglowPlugin extends Plugin {
   private commentsSource: View | null = null;
   private store!: AnnotationStore;
   private mounted = new Map<View, Mounted>();
-  private reconcileTimer: ReturnType<typeof setTimeout> | undefined;
+  private reconcileTimer: number | undefined;
   private epoch = 0;
   private running = false;
   private rerun = false;
@@ -75,7 +75,7 @@ export default class MarglowPlugin extends Plugin {
       this.sourceRenames.add(operation);
       // Folder moves emit rename events before all child paths and link updates settle.
       void (async () => {
-        await new Promise(resolve => setTimeout(resolve, 120));
+        await new Promise(resolve => window.setTimeout(resolve, 120));
         if (!this.stopped) await this.store.renameSource(oldPath, newPath);
       })().catch(error => this.report(error instanceof Error ? error.message : String(error))).finally(() => { this.sourceRenames.delete(operation); this.schedule(); });
     }));
@@ -97,8 +97,8 @@ export default class MarglowPlugin extends Plugin {
   private schedule(): void {
     if (this.stopped) return;
     this.epoch++;
-    clearTimeout(this.reconcileTimer);
-    this.reconcileTimer = setTimeout(() => { void this.reconcile(); }, 80);
+    window.clearTimeout(this.reconcileTimer);
+    this.reconcileTimer = window.setTimeout(() => { void this.reconcile(); }, 80);
   }
 
   private async reconcile(): Promise<void> {
@@ -263,9 +263,8 @@ export default class MarglowPlugin extends Plugin {
   onunload(): void {
     this.stopped = true;
     this.epoch++;
-    clearTimeout(this.reconcileTimer);
+    window.clearTimeout(this.reconcileTimer);
     for (const mounted of this.mounted.values()) { mounted.session.ui.close(); mounted.session.dispose(); }
     this.mounted.clear();
-    this.app.workspace.detachLeavesOfType(COMMENTS_VIEW);
   }
 }

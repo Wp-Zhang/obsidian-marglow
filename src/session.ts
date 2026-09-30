@@ -7,14 +7,14 @@ import { AnnotationUI, colorButton } from "./ui";
 import { COLORS, createAnnotation, type Color, type Annotation, type CapturedSelection, type DocumentAdapter, type LocatedAnnotation, type Source } from "./model";
 
 export interface SessionCallbacks {
-  report(message: string): void;
-  isReassociating(): boolean;
-  reassociate(selection: CapturedSelection): Promise<void>;
-  cancelReassociation(): void;
-  onUiClosed(): void;
-  openComments(session: AnnotationSession): Promise<void>;
-  revealSource(): Promise<void>;
-  isActive(): boolean;
+  report(this: void, message: string): void;
+  isReassociating(this: void): boolean;
+  reassociate(this: void, selection: CapturedSelection): Promise<void>;
+  cancelReassociation(this: void): void;
+  onUiClosed(this: void): void;
+  openComments(this: void, session: AnnotationSession): Promise<void>;
+  revealSource(this: void): Promise<void>;
+  isActive(this: void): boolean;
 }
 
 export class AnnotationSession {
@@ -30,7 +30,7 @@ export class AnnotationSession {
   private observer: MutationObserver;
   private resize: ResizeObserver;
   private frame: number | undefined;
-  private selectionTimer: ReturnType<typeof setTimeout> | undefined;
+  private selectionTimer: number | undefined;
   private version = 0;
   private disposed = false;
   private error = "";
@@ -109,7 +109,7 @@ export class AnnotationSession {
     const signal = this.abort.signal;
     root.addEventListener("pointerdown", event => { this.pointerStart = { x: event.clientX, y: event.clientY }; this.pointerActive = true; }, { signal });
     document.addEventListener("pointerup", () => {
-      if (this.pointerActive) { this.pointerActive = false; clearTimeout(this.selectionTimer); this.selectionTimer = setTimeout(() => this.capture(), 0); }
+      if (this.pointerActive) { this.pointerActive = false; window.clearTimeout(this.selectionTimer); this.selectionTimer = window.setTimeout(() => this.capture(), 0); }
     }, { capture: true, signal });
     document.addEventListener("pointercancel", () => { this.pointerActive = false; }, { signal });
     document.addEventListener("keydown", event => {
@@ -126,8 +126,8 @@ export class AnnotationSession {
       void this.removeEntry(entry).then(() => this.ui.close()).catch(error => callbacks.report(error instanceof Error ? error.message : String(error))).finally(() => { this.pageBusy = false; });
     }, { capture: true, signal });
     document.addEventListener("selectionchange", () => {
-      clearTimeout(this.selectionTimer);
-      this.selectionTimer = setTimeout(() => this.capture(), 100);
+      window.clearTimeout(this.selectionTimer);
+      this.selectionTimer = window.setTimeout(() => this.capture(), 100);
     }, { signal });
     root.addEventListener("pointerup", event => {
       if ((event.target as Element).closest(".marglow-ui")) return;
@@ -247,7 +247,7 @@ export class AnnotationSession {
     if (this.ui.hasDraft || this.ui.isBusy) return;
     if (this.toolMode === mode) {
       this.toolMode = null;
-      clearTimeout(this.selectionTimer);
+      window.clearTimeout(this.selectionTimer);
       this.adapter.root.ownerDocument.getSelection()?.removeAllRanges();
       this.ui.close(); this.updatePageTools(); return;
     }
@@ -297,7 +297,7 @@ export class AnnotationSession {
       this.render();
     } catch (error) {
       // File and metadata events can briefly disagree during native renames or edits.
-      await new Promise(resolve => setTimeout(resolve, 120));
+      await new Promise(resolve => window.setTimeout(resolve, 120));
       if (this.disposed || this.suspended || version !== this.version) return;
       const message = error instanceof Error ? error.message : String(error);
       if (message !== this.error) this.callbacks.report(message);
@@ -419,7 +419,7 @@ export class AnnotationSession {
     this.navigation++;
     this.version++;
     if (this.frame !== undefined) this.adapter.root.ownerDocument.defaultView!.cancelAnimationFrame(this.frame);
-    clearTimeout(this.selectionTimer);
+    window.clearTimeout(this.selectionTimer);
     this.abort.abort();
     this.observer.disconnect();
     this.resize.disconnect();

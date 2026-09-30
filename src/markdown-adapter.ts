@@ -66,6 +66,9 @@ export class MarkdownAdapter implements DocumentAdapter {
       for (const section of renderer.sections) {
         if (typeof section.html !== "string") continue;
         const fragment = template.content.ownerDocument.createElement("template");
+        // Native viewer HTML is parsed only in an inert template, never mounted or
+        // executed. Sanitizing would discard structure needed to reject embeds.
+        // eslint-disable-next-line no-unsanitized/property -- Native HTML remains in an inert template and is never mounted.
         fragment.innerHTML = section.html;
         const wrapper = template.content.ownerDocument.createElement("section");
         wrapper.append(fragment.content); template.content.append(wrapper);
