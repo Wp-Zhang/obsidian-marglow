@@ -1,11 +1,25 @@
+import { waitForLayout } from "./navigation";
 import type { Annotation, CapturedSelection, DocumentAdapter } from "./model";
 import { TextIndex, findText, normalizeText, textAnchor } from "./text-index";
+
+// Keep the host's virtual-section internals confined to the Markdown adapter.
+interface PreviewSection { html: string; lineStart: number; shown: boolean }
+interface PreviewRenderer {
+  sections: PreviewSection[];
+  showSection(section: PreviewSection): void;
+  applyScrollSection(section: PreviewSection): boolean;
+}
+function previewRenderer(preview: unknown): PreviewRenderer | null {
+  const renderer = (preview as { renderer?: PreviewRenderer } | undefined)?.renderer;
+  return renderer && Array.isArray(renderer.sections) && typeof renderer.showSection === "function" && typeof renderer.applyScrollSection === "function" ? renderer : null;
+}
 
 export class MarkdownAdapter implements DocumentAdapter {
   private canonical: TextIndex;
   private visible: TextIndex | null = null;
+  private navigation = 0;
 
-  constructor(readonly root: HTMLElement, renderedDocument: HTMLElement) {
+  constructor(readonly root: HTMLElement, renderedDocument: HTMLElement, private preview?: unknown) {
     this.canonical = new TextIndex(renderedDocument);
   }
 
@@ -39,16 +53,49 @@ export class MarkdownAdapter implements DocumentAdapter {
     return range ? [...range.getClientRects()].filter(rect => rect.width > 0 && rect.height > 0) : [];
   }
 
-  scrollTo(annotation: Annotation): boolean {
+  async scrollTo(annotation: Annotation): Promise<boolean> {
+    const token = ++this.navigation;
+    if (annotation.anchor.kind !== "markdown" || findText(this.canonical.text, annotation.quote, annotation.anchor) === null) return false;
     this.refreshLayout();
-    const rect = this.locate(annotation)?.[0];
-    if (!rect) return false;
+    if (!this.locate(annotation)?.length) {
+      const renderer = previewRenderer(this.preview);
+      if (!renderer) return false;
+      // Parse inert HTML from the complete native section index. No hidden section
+      // is guessed from a percentage or an old offset, and images are not loaded.
+      const template = this.root.ownerDocument.createElement("template");
+      const wrappers = new Map<Node, PreviewSection>();
+      for (const section of renderer.sections) {
+        if (typeof section.html !== "string") continue;
+        const fragment = template.content.ownerDocument.createElement("template");
+        fragment.innerHTML = section.html;
+        const wrapper = template.content.ownerDocument.createElement("section");
+        wrapper.append(fragment.content); template.content.append(wrapper);
+        wrappers.set(wrapper, section);
+      }
+      const index = new TextIndex(template.content);
+      const position = findText(index.text, annotation.quote, annotation.anchor);
+      if (position === null) return false;
+      const range = index.range(position, position + normalizeText(annotation.quote).length);
+      let node: Node | null = range?.startContainer ?? null;
+      while (node && !wrappers.has(node)) node = node.parentNode;
+      const section = node ? wrappers.get(node) : undefined;
+      if (!section) return false;
+      renderer.showSection(section);
+      if (!renderer.applyScrollSection(section)) return false;
+    }
+    const loaded = await waitForLayout(this.root, () => { this.refreshLayout(); return !!this.locate(annotation)?.length; }, () => this.navigation === token);
+    if (!loaded) return false;
+    const rect = this.locate(annotation)![0]!;
     const box = this.root.getBoundingClientRect();
     this.root.scrollTop += rect.top - box.top - Math.max(80, box.height / 3);
-    return true;
+    return waitForLayout(this.root, () => {
+      this.refreshLayout();
+      const current = this.locate(annotation)?.[0], viewport = this.root.getBoundingClientRect();
+      return !!current && current.bottom > viewport.top && current.top < viewport.bottom;
+    }, () => this.navigation === token);
   }
 
-  dispose(): void {}
+  dispose(): void { this.navigation++; }
 
   refreshLayout(): void { this.visible = new TextIndex(this.root); }
 

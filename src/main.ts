@@ -138,7 +138,7 @@ export default class MarglowPlugin extends Plugin {
             if (isReadingNote(source)) { this.removeChild(owner); continue; }
             const rendered = candidate.root.ownerDocument.createElement("div");
             await MarkdownRenderer.render(this.app, source, rendered, candidate.file.path, owner);
-            adapter = new MarkdownAdapter(candidate.root, rendered);
+            adapter = new MarkdownAdapter(candidate.root, rendered, (view as MarkdownView).previewMode);
           } else {
             const bytes = await this.app.vault.readBinary(candidate.file);
             const digest = await crypto.subtle.digest("SHA-256", bytes);
@@ -148,7 +148,8 @@ export default class MarglowPlugin extends Plugin {
           if (this.stopped || epoch !== this.epoch || !candidate.root.isConnected) { this.removeChild(owner); continue; }
           const callbacks: SessionCallbacks = {
             isActive: () => this.app.workspace.activeLeaf?.view === view || (this.app.workspace.activeLeaf?.view.getViewType() === COMMENTS_VIEW && this.commentsSource === view),
-            openComments: session => { void this.openComments(session).catch(error => this.report(String(error))); },
+            openComments: session => this.openComments(session).catch(error => this.report(String(error))),
+            revealSource: () => this.app.workspace.revealLeaf(view.leaf),
             report: message => this.report(message),
             openNote: source => this.openNote(source),
             cancelReassociation: () => { this.pending = null; },

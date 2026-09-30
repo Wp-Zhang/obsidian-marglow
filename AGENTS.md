@@ -28,6 +28,7 @@ Marglow is an Obsidian plugin for highlighting and commenting on Markdown and PD
 ## Architecture and Data Integrity
 
 - Separate annotation UI, the Markdown adapter, the PDF adapter, companion-note storage, and source association through clear boundaries. Do not create a separate sync subsystem.
+- Use verified quotation/context matching for bidirectional navigation; load distant native sections/pages before aligning targets, reveal matching sidebar cards, and never guess an ambiguous location.
 - Isolate PDF viewer internals and DOM dependencies inside the PDF adapter. Verify host compatibility instead of silently saving incomplete selections or unreliable coordinates.
 - Use Obsidian and browser-compatible APIs. Do not make Electron or Node-only capabilities runtime dependencies on iOS.
 - Store PDF geometry in page coordinates and represent cross-page annotations with multiple page segments under one annotation ID.

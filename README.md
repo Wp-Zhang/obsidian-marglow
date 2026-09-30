@@ -8,7 +8,7 @@ The name combines **margin** and **glow**.
 
 ## Status
 
-**0.1.7 is an initial development build**, not a Community Plugins release. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
+**0.1.8 is an initial development build**, not a Community Plugins release. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
 
 The Markdown page toolbar stays flush with the top of the reading pane. A persistent page toolbar offers color selection, icon tools for Highlight, Underline, and Comment, and Reading notes. Choose a color before selecting text; activate Highlight to mark subsequent selections, or Comment to write on the next selection. Click the active tool again to turn it off. Floating selection tools remain available.
 
@@ -55,7 +55,7 @@ For iOS, place those same three files in the target Vault's plugin directory usi
 5. Open **Comments** to review annotations. Hover either side to identify its counterpart; click its quote to navigate, or click the comment itself to edit directly inside its card. Inline editing supports Save/Cancel, outside-click autosave, and `Cmd + Enter`/`Esc`; failed or stale writes keep the draft. Each card shows its last update time; hover the time for creation and update details. Unlocated entries remain listed.
 6. Use the **Reading notes** button or command to open the companion note. Edit comments between their markers, add your own notes outside annotation entries, or remove a complete entry.
 
-Navigation uses verified locations. If a long Markdown document has not rendered the target passage yet, scroll to it before retrying; Marglow reports this rather than guessing a location.
+Navigation uses verified quotation/context matches. Clicking a sidebar quote loads distant Markdown sections or PDF pages before aligning the annotation. Clicking a source annotation opens the comments tab and scrolls to its card. Ambiguous or missing locations remain unlocated instead of being guessed. Virtual-section and PDF viewer internals stay isolated in their adapters and are checked for compatibility.
 
 New reading notes live in an ordinary `_marglow/` subfolder of each source directory. Root-level sources use `_marglow/` at the Vault root. Source extensions stay in note names to distinguish Markdown from PDF. Existing sidecar notes remain supported and are edited in place. You can move an existing reading note into `_marglow/` through Obsidian; its source metadata keeps the association. Keep one canonical reading note per source.
 

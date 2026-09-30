@@ -16,10 +16,13 @@ for (const file of ["main.js", "manifest.json", "styles.css"]) await copyFile(`d
 let markdown = "# Smoke test\n\nFirst **important sentence** with a [link](https://example.com).\n\nAnother paragraph for context.\n\n- A useful list item.\n\n| A | B |\n| --- | --- |\n| Table text | Context |\n";
 await writeFile(`${vault}/Smoke.md`, markdown);
 
-function pdfFixture() {
-  const objects = ["<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >>"];
-  for (const [page, stream] of [[3, 4], [5, 6]]) {
-    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 360] /Resources << /Font << /F1 7 0 R >> >> /Contents ${stream} 0 R >>`);
+function pdfFixture(pageCount = 2) {
+  const pageIds = Array.from({ length: pageCount }, (_, index) => 3 + index * 2);
+  const fontId = 3 + pageCount * 2;
+  const objects = ["<< /Type /Catalog /Pages 2 0 R >>", `<< /Type /Pages /Kids [${pageIds.map(id => `${id} 0 R`).join(" ")}] /Count ${pageCount} >>`];
+  for (const page of pageIds) {
+    const stream = page + 1;
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 360] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${stream} 0 R >>`);
     const content = `BT /F1 16 Tf 50 280 Td (Marglow page ${(page - 1) / 2}) Tj 0 -35 Td (An important PDF passage.) Tj ET`;
     objects.push(`<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream`);
   }
@@ -28,11 +31,14 @@ function pdfFixture() {
   const offsets = [];
   for (const [index, object] of objects.entries()) { offsets.push(Buffer.byteLength(pdf)); pdf += `${index + 1} 0 obj\n${object}\nendobj\n`; }
   const xref = Buffer.byteLength(pdf);
-  pdf += "xref\n0 8\n0000000000 65535 f \n";
+  const size = objects.length + 1;
+  pdf += `xref\n0 ${size}\n0000000000 65535 f \n`;
   for (const offset of offsets) pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
-  return Buffer.from(pdf + `trailer\n<< /Size 8 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  return Buffer.from(pdf + `trailer\n<< /Size ${size} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
 }
 const pdf = pdfFixture();
+const longPdf = pdfFixture(30);
+await writeFile(`${vault}/Long.pdf`, longPdf);
 await writeFile(`${vault}/Smoke.pdf`, pdf);
 await writeFile(`${vault}/.obsidian/app.json`, JSON.stringify({ livePreview: false, defaultViewMode: "preview", showInlineTitle: false, alwaysUpdateLinks: true }));
 await writeFile(`${vault}/.obsidian/community-plugins.json`, JSON.stringify(["marglow"]));
@@ -169,6 +175,7 @@ try {
   await page.mouse.move(bodyRect.x + bodyRect.width - 2, bodyRect.y + bodyRect.height / 2);
   await page.waitForFunction(id => !!document.querySelector(`.marglow-comment-card.is-hovered[data-annotation-id="${id}"]`), ids[0]);
   await card.locator(".marglow-comment-text").click();
+  await sidebar.locator(".marglow-inline-composer textarea").waitFor();
   assert.equal(await sidebar.locator(".marglow-inline-composer textarea").count(), 1);
   assert.equal(await page.locator("body > .marglow-composer").count(), 0);
   await page.getByRole("textbox", { name: "Comment", exact: true }).fill("Sidebar edit.");
@@ -422,6 +429,86 @@ try {
   assert.equal(await readFile(`${vault}/Moved/Article.md`, "utf8"), "Source text");
   assert.equal(await page.evaluate(() => !!app.vault.getFileByPath("Moved/Article.md.annotations.md")), false);
   passed("Grouped reading-note folders move with sources and retain native block references");
+  const longText = "# Long navigation\n\n" + Array.from({ length: 600 }, (_, index) => `Paragraph ${index}: **${index === 450 ? "Distant target passage" : "A normal passage"}** with context words.\n\n`).join("");
+  await page.evaluate(async text => {
+    await app.vault.create("Long.md", text);
+    await app.workspace.getLeaf(false).openFile(app.vault.getFileByPath("Long.md"), { state: { mode: "preview" } });
+  }, longText);
+  await page.waitForFunction(() => [...app.plugins.plugins.marglow.mounted.values()].some(mount => mount.session.source.path === "Long.md"));
+  const longIds = [];
+  for (const quote of ["Paragraph 0:", "Distant target passage"]) {
+    const id = await page.evaluate(async quote => {
+      const session = [...app.plugins.plugins.marglow.mounted.values()].find(mount => mount.session.source.path === "Long.md").session;
+      const text = session.adapter.canonical.text, position = text.indexOf(quote), id = `ann-${crypto.randomUUID()}`;
+      await app.plugins.plugins.marglow.store.save(session.source, { id, blockId: id, color: "yellow", style: "highlight", quote, comment: "", anchor: { kind: "markdown", textStart: position, prefix: text.slice(Math.max(0, position - 48), position), suffix: text.slice(position + quote.length, position + quote.length + 48) }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+      return id;
+    }, quote);
+    longIds.push(id);
+  }
+  await page.waitForFunction(() => document.querySelector('.marglow-file-tools > button:last-child')?.textContent === "Reading notes · 2");
+  assert.equal(await page.locator(`.marglow-highlight[data-annotation-id="${longIds[1]}"]`).count(), 0);
+  await pageTools.getByRole("button", { name: "Comments", exact: true }).click();
+  await sidebar.locator(`.marglow-comment-card[data-annotation-id="${longIds[1]}"] .marglow-comment-jump`).click();
+  await page.waitForFunction(id => {
+    const highlight = document.querySelector(`.marglow-highlight[data-annotation-id="${id}"]`), root = document.querySelector('.markdown-preview-view');
+    if (!highlight) return false;
+    const target = highlight.getBoundingClientRect(), viewport = root.getBoundingClientRect();
+    return target.top > viewport.top && target.bottom < viewport.bottom;
+  }, longIds[1]);
+  assert.equal(await page.locator(`.marglow-highlight.is-active[data-annotation-id="${longIds[1]}"]`).count(), 1);
+  await page.screenshot({ path: `${output}/long-markdown-navigation.png` });
+  await sidebar.locator(`.marglow-comment-card[data-annotation-id="${longIds[0]}"] .marglow-comment-jump`).click();
+  await page.waitForFunction(id => {
+    const node = document.querySelector(`.marglow-highlight[data-annotation-id="${id}"]`), root = document.querySelector('.markdown-preview-view');
+    return node && node.getBoundingClientRect().top >= root.getBoundingClientRect().top && root.scrollTop < 200;
+  }, longIds[0]);
+  // Push the first card below many real entries, then click its source highlight.
+  await page.evaluate(async () => {
+    const session = [...app.plugins.plugins.marglow.mounted.values()].find(mount => mount.session.source.path === "Long.md").session;
+    const entry = session.entries[0].annotation;
+    for (let index = 0; index < 25; index++) {
+      const id = `ann-${crypto.randomUUID()}`;
+      await app.plugins.plugins.marglow.store.save(session.source, { ...entry, id, blockId: id });
+    }
+  });
+  await page.waitForFunction(() => document.querySelectorAll('.marglow-comment-card').length === 27);
+  await sidebar.locator('.marglow-comment-list').evaluate(element => { element.scrollTop = element.scrollHeight; });
+  await clickHighlight();
+  await page.locator('.marglow-choices button').first().click();
+  await page.waitForFunction(id => {
+    const card = document.querySelector(`.marglow-comment-card[data-annotation-id="${id}"]`), list = document.querySelector('.marglow-comment-list');
+    if (!card || !list) return false;
+    const target = card.getBoundingClientRect(), viewport = list.getBoundingClientRect();
+    return target.top >= viewport.top && target.bottom <= viewport.bottom;
+  }, longIds[0]);
+  assert.equal(await readFile(`${vault}/Long.md`, "utf8"), longText);
+  passed("Bidirectional long-document navigation loads unrendered paragraphs and reveals offscreen cards");
+  await closeSidebar();
+  await page.evaluate(async () => app.workspace.getLeaf(false).openFile(app.vault.getFileByPath("Long.pdf")));
+  await page.waitForFunction(() => [...app.plugins.plugins.marglow.mounted.values()].some(mount => mount.session.source.path === "Long.pdf") && document.querySelector('.page[data-page-number="1"] .textLayer span'));
+  assert.equal(await page.locator('.page[data-page-number="29"] .textLayer span').count(), 0);
+  const distantPdfId = await page.evaluate(async () => {
+    const session = [...app.plugins.plugins.marglow.mounted.values()].find(mount => mount.session.source.path === "Long.pdf").session;
+    const text = document.querySelector('.page[data-page-number="1"] .textLayer span:last-of-type').firstChild;
+    const range = document.createRange(); range.selectNodeContents(text);
+    const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range);
+    const captured = session.adapter.capture(selection); selection.removeAllRanges();
+    const id = `ann-${crypto.randomUUID()}`;
+    await app.plugins.plugins.marglow.store.save(session.source, { id, blockId: id, color: "blue", quote: captured.quote, comment: "", anchor: { ...captured.anchor, segments: captured.anchor.segments.map(segment => ({ ...segment, page: 29 })) }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+    return id;
+  });
+  await pageTools.getByRole("button", { name: "Comments", exact: true }).click();
+  await sidebar.locator(`.marglow-comment-card[data-annotation-id="${distantPdfId}"] .marglow-comment-jump`).click();
+  await page.waitForFunction(id => {
+    const layer = document.querySelector('.page[data-page-number="29"] .textLayer span'), highlight = document.querySelector(`.marglow-highlight[data-annotation-id="${id}"]`), root = document.querySelector('.marglow-source');
+    if (!layer || !highlight) return false;
+    const target = highlight.getBoundingClientRect(), viewport = root.getBoundingClientRect();
+    return target.top >= viewport.top && target.bottom <= viewport.bottom;
+  }, distantPdfId);
+  await page.screenshot({ path: `${output}/distant-pdf-navigation.png` });
+  assert.deepEqual(await readFile(`${vault}/Long.pdf`), longPdf);
+  passed("PDF sidebar navigation loads and aligns a previously unrendered distant page");
+
   assert.equal(await readFile(`${vault}/Renamed.md`, "utf8"), markdown);
   assert.deepEqual(await readFile(`${vault}/Smoke.pdf`), pdf);
   assert.deepEqual(errors, []);

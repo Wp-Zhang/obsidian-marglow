@@ -60,7 +60,7 @@ export interface DocumentAdapter {
   overlayHost?(rect: DOMRect): HTMLElement | null;
   matches(annotation: Annotation, selection: CapturedSelection): boolean;
   refreshLayout(): void;
-  scrollTo?(annotation: Annotation): boolean;
+  scrollTo?(annotation: Annotation): boolean | Promise<boolean>;
   dispose(): void;
 }
 

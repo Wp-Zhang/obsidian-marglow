@@ -1,3 +1,4 @@
+import { waitForLayout } from "./navigation";
 import type { Annotation, CapturedSelection, DocumentAdapter, PdfSegment, Rect } from "./model";
 import { normalizeText } from "./text-index";
 
@@ -51,6 +52,7 @@ export function rectFromPdf(rect: Rect, box: DOMRect, viewport: PageViewport): D
 }
 
 export class PdfAdapter implements DocumentAdapter {
+  private navigation = 0;
   private hosts = new WeakMap<DOMRect, HTMLElement>();
   overlayHost(rect: DOMRect): HTMLElement | null { return this.hosts.get(rect) ?? null; }
   constructor(readonly root: HTMLElement, private view: unknown, private fingerprint: string) {}
@@ -125,11 +127,14 @@ export class PdfAdapter implements DocumentAdapter {
     return rects;
   }
 
-  scrollTo(annotation: Annotation): boolean {
+  async scrollTo(annotation: Annotation): Promise<boolean> {
+    const token = ++this.navigation;
     if (annotation.anchor.kind !== "pdf" || this.locate(annotation) === null) return false;
     const page = viewerFromView(this.view)?.getPageView(annotation.anchor.segments[0]!.page - 1);
     if (!page?.div.isConnected) return false;
     page.div.scrollIntoView({ block: "start" });
+    const loaded = await waitForLayout(this.root, () => !!page.div.querySelector(".textLayer") && !!this.locate(annotation)?.length, () => this.navigation === token);
+    if (!loaded) return false;
     const rect = this.locate(annotation)?.[0];
     if (rect) {
       let scroller = page.div.parentElement;
@@ -139,7 +144,7 @@ export class PdfAdapter implements DocumentAdapter {
     return true;
   }
 
-  dispose(): void {}
+  dispose(): void { this.navigation++; }
 
   refreshLayout(): void {}
 

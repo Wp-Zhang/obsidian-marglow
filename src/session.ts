@@ -13,7 +13,8 @@ export interface SessionCallbacks {
   reassociate(selection: CapturedSelection): Promise<void>;
   cancelReassociation(): void;
   onUiClosed(): void;
-  openComments(session: AnnotationSession): void;
+  openComments(session: AnnotationSession): Promise<void>;
+  revealSource(): Promise<void>;
   isActive(): boolean;
 }
 
@@ -49,6 +50,7 @@ export class AnnotationSession {
   private activeId: string | null = null;
   private hoveredId: string | null = null;
   private preview: Annotation | null = null;
+  private navigation = 0;
   private unlocated = new Set<string>();
 
   constructor(readonly source: Source, readonly adapter: DocumentAdapter, private store: AnnotationStore, mobile: boolean, private callbacks: SessionCallbacks) {
@@ -89,7 +91,7 @@ export class AnnotationSession {
     setIcon(this.pageComment, "message-square");
     this.pageComment.addEventListener("click", () => this.chooseTool("comment"));
     this.tools.append(this.pageHighlight, this.pageUnderline, this.pageComment);
-    this.sidebar = new AnnotationSidebar(document, (annotation, edit) => { void this.selectFromSidebar(annotation, edit); }, id => this.emphasize(this.activeId, id), annotation => { void this.removeFromSidebar(annotation); });
+    this.sidebar = new AnnotationSidebar(document, (annotation, edit) => { void this.selectFromSidebar(annotation, edit).catch(error => callbacks.report(error instanceof Error ? error.message : String(error))); }, id => this.emphasize(this.activeId, id), annotation => { void this.removeFromSidebar(annotation); });
     this.ui.navigationContainer = this.sidebar.element;
     this.sidebar.element.classList.toggle("marglow-mobile", mobile);
     this.sidebarButton = document.createElement("button");
@@ -231,6 +233,9 @@ export class AnnotationSession {
     const entry = this.entries.find(entry => entry.annotation.id === annotation.id);
     if (!entry || this.error) return;
     this.ui.show({ quote: annotation.quote, anchor: annotation.anchor, rect }, this.actions({ quote: annotation.quote, anchor: annotation.anchor, rect }, entry), annotation);
+    void this.callbacks.openComments(this).then(() => {
+      if (!this.disposed && !this.suspended && this.activeId === annotation.id) this.sidebar.emphasize(this.activeId, this.hoveredId, true);
+    });
   }
 
   private currentSelection(): CapturedSelection | null {
@@ -402,10 +407,13 @@ export class AnnotationSession {
     this.preview = null;
     this.adapter.root.ownerDocument.getSelection()?.removeAllRanges();
     this.emphasize(annotation.id, this.hoveredId, true);
-    const navigated = this.adapter.scrollTo?.(entry.annotation) ?? false;
+    const token = ++this.navigation;
+    await this.callbacks.revealSource();
+    const navigated = await this.adapter.scrollTo?.(entry.annotation) ?? false;
+    if (this.disposed || this.suspended || token !== this.navigation) return;
     this.render();
     const rect = this.located.find(item => item.annotation.id === annotation.id)?.rects[0];
-    if (!navigated) this.callbacks.report(this.unlocated.has(annotation.id) ? "This annotation is unlocated. Reassociate it from Reading notes." : "This passage is not rendered yet. Scroll to it in the document, then try again.");
+    if (!navigated) this.callbacks.report(this.unlocated.has(annotation.id) ? "This annotation is unlocated. Reassociate it from Reading notes." : "The document viewer could not load this annotation location. Reopen the source and try again.");
     if (edit) {
       const selection = { quote: entry.annotation.quote, anchor: entry.annotation.anchor, rect: rect ?? this.sidebar.element.getBoundingClientRect() };
       this.ui.showComment(selection, this.actions(selection, entry), entry.annotation, this.sidebar.editorHost(annotation.id));
@@ -414,6 +422,7 @@ export class AnnotationSession {
 
   dispose(): void {
     this.disposed = true;
+    this.navigation++;
     this.version++;
     if (this.frame !== undefined) this.adapter.root.ownerDocument.defaultView!.cancelAnimationFrame(this.frame);
     clearTimeout(this.selectionTimer);

@@ -5,7 +5,7 @@ Use a dedicated Vault with synthetic Markdown and PDF material. Never run these 
 ## Current verification
 
 - Automated checks cover Markdown round trips, direct edits, deletion, local-update preservation, stale-write rejection, malformed files, duplicate IDs, source association, text anchoring, PDF page transforms, cross-page selection, and composer persistence failures.
-- Mac smoke checks use actual Obsidian 1.8.10 with a private test profile. The 23 checks exercise visible round color swatches in light/dark themes, persistent page tools, active/hover distinction, native right-sidebar tabs, document switching and focus association, Markdown/PDF persistence, source updates, per-frame PDF scroll alignment, zoom/rotation geometry, and plugin reloads.
+- Mac smoke checks use actual Obsidian 1.8.10 with a private test profile. The 25 checks exercise visible round color swatches in light/dark themes, persistent page tools, active/hover distinction, native right-sidebar tabs, document switching and focus association, Markdown/PDF persistence, source updates, per-frame PDF scroll alignment, zoom/rotation geometry, and plugin reloads.
 - iOS physical-device selection, native menus, keyboard placement, and reopening remain unverified until the checklist below is run on a device. A desktop viewport or DOM test is not an iOS acceptance test.
 
 Run `npm run check`, `npm run package`, and, on Mac, `npm run smoke:mac`. The smoke script creates isolated fixtures and checks source-byte preservation before it exits. Inspect its screenshots in the printed local output directory.
@@ -16,6 +16,7 @@ Run `npm run check`, `npm run package`, and, on Mac, `npm run smoke:mac`. The sm
 - [ ] Verify Highlight/Underline/Comment icons and accessible labels. Save both styles on the same range in Markdown/PDF; reselecting reuses the same style, and underlines survive reload, zoom, rotation and scrolling.
 - [ ] Edit a comment in its sidebar card, then test outside-click autosave, cancel, keyboard shortcuts, a failed/stale write, and source switching; pending input remains visible on failure.
 - [ ] Confirm round, visible color swatches in both themes. Choose a color before selecting text, toggle Highlight mode, and start a comment from the page toolbar before selecting text.
+- [ ] In a long Markdown/PDF, navigate to unrendered distant targets from the sidebar, then click source highlights with the corresponding cards offscreen. Check heading expansion, rapid target switches, and original source bytes.
 - [ ] Select a source highlight or sidebar quote and delete using Delete/Backspace/Cmd + Delete; only its entry disappears. Check hover Delete and touch visibility, text inputs, inactive leaves, failed writes, and malformed notes.
 - [ ] Click a highlight: its outline and corresponding comment card distinguish it from others. Hover the text and card in both directions, navigate from the card, edit, and verify stable IDs.
 - [ ] Check the native Comments tab beside Outline/Backlinks, source switching, workspace restoration, and the iOS drawer; use native sidebar controls to close it, click comment text to edit, verify displayed times and preserved failed drafts, reflects note edits/deletions, and retains unlocated entries.
@@ -48,7 +49,7 @@ On two test devices, use the chosen sync tool to change different annotations, t
 
 ## Known boundaries
 
-- Sidebar navigation to a Markdown passage that is not currently rendered requires scrolling to render it first; unreliable targets are not guessed.
+- Distant navigation uses the host’s native virtual-section/PDF APIs and waits for rendering. Missing or ambiguous quotes do not trigger guessed navigation; unsupported viewer versions report a compatibility/loading problem.
 - Markdown annotations operate in Reading view. Editor modes retain data but do not show the annotation layer.
 - Embedded document selections and formulas are rejected rather than silently assigned to the wrong source.
 - PDF fingerprints are content hashes. A replaced PDF marks old anchors unlocated until manually reassociated; it does not automatically rematch changed PDFs.

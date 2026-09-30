@@ -13,7 +13,7 @@ export class TextIndex {
   private points: Array<Point | null> = [];
   private characters: string[] = [];
 
-  constructor(readonly root: HTMLElement) {
+  constructor(readonly root: HTMLElement | DocumentFragment) {
     const walker = root.ownerDocument.createTreeWalker(root, 4);
     let previousBlock: Element | null = null;
     let node: Node | null;
