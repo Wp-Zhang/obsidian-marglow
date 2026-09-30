@@ -64,6 +64,15 @@ try {
   assert.equal(await page.evaluate(() => app.vault.adapter.basePath), vault, "Refusing to operate on any other Vault.");
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
+  await page.evaluate(() => {
+    window.marglowSmokeErrors = [];
+    new MutationObserver(() => {
+      for (const element of document.querySelectorAll(".notice")) {
+        const text = element.textContent;
+        if (text.startsWith("Marglow:") && text !== "Marglow: Select replacement text, then press Reassociate." && !window.marglowSmokeErrors.includes(text)) window.marglowSmokeErrors.push(text);
+      }
+    }).observe(document.body, { childList: true, subtree: true });
+  });
   const trust = page.getByRole("button", { name: "Trust author and enable plugins", exact: true });
   await trust.waitFor({ timeout: 15000 });
   await trust.click();
@@ -85,7 +94,12 @@ try {
   passed("Markdown selection, companion creation, and highlight");
 
   const clickHighlight = async () => {
-    const box = await page.locator(".marglow-highlight").first().boundingBox();
+    const handle = await page.waitForFunction(() => {
+      const rect = document.querySelector(".marglow-highlight")?.getBoundingClientRect();
+      return rect?.width && rect.height ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : false;
+    });
+    const box = await handle.jsonValue();
+    await handle.dispose();
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   };
   await clickHighlight();
@@ -179,6 +193,7 @@ try {
   assert.equal(await readFile(`${vault}/Renamed.md`, "utf8"), markdown);
   assert.deepEqual(await readFile(`${vault}/Smoke.pdf`), pdf);
   assert.deepEqual(errors, []);
+  assert.deepEqual(await page.evaluate(() => window.marglowSmokeErrors), []);
   passed("Source-byte preservation and no renderer exceptions");
   await writeFile(`${output}/report.json`, JSON.stringify({ title: await page.title(), checks }, null, 2));
   console.log(`Smoke artifacts: ${output}`);

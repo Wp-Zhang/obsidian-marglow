@@ -122,15 +122,18 @@ export class AnnotationSession {
   }
 
   async refresh(): Promise<void> {
+    if (this.disposed || this.suspended) return;
     const version = ++this.version;
     try {
       const { note } = await this.store.load(this.source);
-      if (this.disposed || version !== this.version) return;
+      if (this.disposed || this.suspended || version !== this.version) return;
       this.entries = note?.entries ?? [];
       this.error = "";
       this.render();
     } catch (error) {
-      if (this.disposed || version !== this.version) return;
+      // File and metadata events can briefly disagree during native renames or edits.
+      await new Promise(resolve => setTimeout(resolve, 120));
+      if (this.disposed || this.suspended || version !== this.version) return;
       const message = error instanceof Error ? error.message : String(error);
       if (message !== this.error) this.callbacks.report(message);
       this.error = message;

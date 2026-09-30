@@ -11,6 +11,8 @@ export class AnnotationStore {
   constructor(private app: App) {}
 
   private resolveSource(source: Source, note: TFile): Source {
+    const exact = this.app.vault.getFileByPath(source.path);
+    if (exact) return { ...source, path: exact.path };
     const linkpath = source.path.split("|")[0]!.split("#")[0]!;
     const file = this.app.metadataCache.getFirstLinkpathDest(linkpath, note.path);
     return { ...source, path: file?.path ?? linkpath };

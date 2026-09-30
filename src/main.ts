@@ -60,6 +60,9 @@ export default class MarglowPlugin extends Plugin {
     this.registerEvent(this.app.vault.on("delete", () => { for (const mounted of this.mounted.values()) void mounted.session.refresh(); this.schedule(); }));
     this.registerEvent(this.app.metadataCache.on("changed", () => { for (const mounted of this.mounted.values()) void mounted.session.refresh(); }));
     this.registerEvent(this.app.vault.on("rename", (file, oldPath) => {
+      for (const mounted of this.mounted.values()) {
+        if (mounted.session.source.path === oldPath || mounted.session.source.path.startsWith(`${oldPath}/`)) mounted.session.suspend();
+      }
       void this.store.renameSource(oldPath, file.path).catch(error => this.report(error instanceof Error ? error.message : String(error))).finally(() => this.schedule());
     }));
     this.addCommand({ id: "open-reading-note", name: "Open reading notes", callback: () => { void this.openCurrentNote().catch(error => this.report(String(error))); } });
