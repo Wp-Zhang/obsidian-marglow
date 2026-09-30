@@ -1,6 +1,6 @@
 # Marglow Development Guidelines
 
-Marglow is an Obsidian plugin for highlighting and commenting on Markdown and PDF documents. The project is currently in the design stage; do not present planned features as implemented behavior.
+Marglow is an Obsidian plugin for highlighting and commenting on Markdown and PDF documents. The project has an initial development build; distinguish implemented behavior, automated checks, and remaining device verification.
 
 ## Core Design Principles
 
@@ -40,6 +40,8 @@ Marglow is an Obsidian plugin for highlighting and commenting on Markdown and PD
 Complete design documents and development scratch material belong in the local `dev/` directory. The entire directory is ignored by Git; do not commit its contents or add document-specific ignore rules.
 
 Consult local design documents when they are available. Keep these tracked principles and the README aligned with confirmed product decisions so a fresh clone remains understandable without local-only files.
+
+The root README is English by default. Maintain its Chinese counterpart in `docs/README.zh-CN.md`, with working language links and equivalent setup, capability, and limitation information.
 
 ## Verification
 

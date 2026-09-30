@@ -1,43 +1,96 @@
 # Marglow
 
-Marglow 是一个正在设计中的 Obsidian 阅读标注插件，统一提供 Markdown 与 PDF 的高亮和评论体验。
+English · [简体中文](docs/README.zh-CN.md)
 
-名称来自 **margin**（页边批注）与 **glow**（高亮）。
+Marglow adds in-place highlights and comments to Markdown and PDF reading in Obsidian. Each source has an editable Markdown reading note beside it; your source document stays unchanged.
 
-## 当前状态
+The name combines **margin** and **glow**.
 
-已完成 MVP 产品范围与设计确认，尚未实现可安装的插件。仓库目前作为后续开发的起点。
+## Status
 
-## MVP 目标
+**0.1.0 is an initial development build**, not a Community Plugins release. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
 
-- 首批支持 **Mac + iOS**。
-- 支持 Markdown **阅读视图**与可选文本的 PDF，包括跨页标注。
-- 选择文本后就地高亮或评论，继续阅读，不要求切换到另一篇笔记。
-- 源 Markdown 和 PDF 保持不变。
-- 源文件旁的 **Markdown 阅读笔记**是标注唯一持久化数据源，可直接编辑、检索和引用。
-- 支持部分重叠、评论双向编辑、完整条目删除和未定位标注重新关联。
-- 文件同步与跨设备冲突处理交给用户已有的同步工具；插件负责安全局部写入、外部更新刷新和格式校验。
+## Features
 
-Windows、Markdown 编辑视图、专用 Copy link／Copy quote 操作和高级标注管理留在后续阶段。
+- Four highlight colors and a lightweight comment composer, directly beside a text selection.
+- Markdown **Reading view**, including selections across formatting and paragraphs.
+- Text-selectable PDFs, with multiple page segments under one annotation and highlights that follow zoom and rotation.
+- Independent overlapping annotations; exact selections reuse an existing annotation.
+- Autosave comments when clicking or tapping outside the composer. Save/cancel buttons, `Cmd + Enter`, and `Esc` are available.
+- A companion `source.md.annotations.md` or `source.pdf.annotations.md` note containing readable quotes, comments, stable block IDs, and hidden positioning metadata.
+- Direct comment edits and complete-entry deletions in the companion note reflected in the source view.
+- Manual reassociation of unlocated annotations and relinking a reading note to a replacement source.
+- Local file validation and updates that preserve handwritten notes and unrelated entries.
 
-## 设计文档
+Windows, Markdown editing-view annotations, OCR, dedicated Copy link/Copy quote actions, PDF write-back, and advanced annotation dashboards are outside this initial scope.
 
-完整设计文档保存在本地 `dev/` 目录，不随 Git 仓库提交。仓库中的 [AGENTS.md](AGENTS.md) 记录核心设计原则、MVP 范围及开发约束。
+## Install a development build
 
-开始实现前，优先验证 Mac／iOS 的 PDF 跨页选区、高亮生命周期、Markdown 阅读视图定位和旁置笔记的局部读写能力。
+Requires Node.js 22 or later for building and Obsidian 1.8.10 or later for running. No Node.js runtime is required inside Obsidian or on iOS.
 
-## 项目标识
+Packaging also uses the system `zip` command, included with macOS and the Ubuntu CI runner.
 
-| 项目 | 名称 |
+```sh
+npm ci
+npm run check
+npm run package
+```
+
+Copy the **contents** of `dist/marglow/` into `<your-test-vault>/.obsidian/plugins/marglow/`. The plugin directory must contain `main.js`, `manifest.json`, and `styles.css` directly. Reload Obsidian and enable Marglow under **Settings → Community plugins**.
+
+For iOS, place those same three files in the target Vault's plugin directory using your existing file-management or sync workflow, then enable the plugin on the device. Whether hidden configuration folders are transferred depends on that workflow; Marglow does not configure it. Use a dedicated test Vault for initial verification.
+
+## Use
+
+1. Open a Markdown note in **Reading view**, or open a PDF with a selectable text layer.
+2. Select text, then pick a color or choose **Comment**. There is no need to open a reading note first.
+3. Write a comment and save explicitly or click/tap outside. Cancel discards the current unsaved edit; saving an empty existing comment keeps its highlight.
+4. Click highlighted text to change its color, edit/remove its comment, or delete the annotation. For overlaps, choose an entry from the short list.
+5. Use the **Reading notes** button or command to open the companion note. Edit comments between their markers, add your own notes outside annotation entries, or remove a complete entry.
+
+Reading notes are created only when the first annotation is saved. To delete an entry manually, remove everything from its `oa:annotation:start` marker through the matching `oa:annotation:end` marker. Keep metadata and IDs intact when editing just a comment.
+
+Native references to a saved quote work as ordinary Obsidian block links:
+
+```markdown
+[[source.md.annotations#^ann-<saved-id>]]
+```
+
+Use an actual block ID from the companion note, not the placeholder above. Removing an annotation also removes its block reference target. Other edits and reassociation keep its ID stable.
+
+### Commands
+
+All command names have the `Marglow:` prefix in the command palette.
+
+| Command | Purpose |
 | --- | --- |
-| 产品名称 | Marglow |
-| GitHub 仓库 | `Wp-Zhang/obsidian-marglow` |
-| 计划插件 ID | `marglow` |
+| Open reading notes | Open the companion note for the current source |
+| Open source document | Open the source referenced by the current reading note |
+| Reassociate an annotation | Choose an entry, select replacement text in its source, then press Reassociate |
+| Cancel reassociation | Cancel the pending replacement selection |
+| Relink reading notes to a source document | From a reading note, explicitly choose a replacement source of the same type |
 
-命名时已核对 [Obsidian 官方社区插件目录](https://github.com/obsidianmd/obsidian-releases/blob/master/community-plugins.json) 与 GitHub 仓库名检索，未发现同名插件。插件 ID 仍需在正式发布前再次核对。
+## Data and synchronization
 
-## 本地开发
+The companion Markdown note is the **only persistent annotation store**. There is no separate JSON database. Source Markdown and PDFs are never rewritten to add annotations or block IDs.
 
-开发工具链尚未初始化，当前没有安装、构建或测试命令。后续建立项目骨架时补充实际可执行的开发说明。
+File synchronization and cross-device conflicts belong to your chosen sync tool. Marglow does not implement merging, last-writer arbitration, conflict-copy selection, or deletion tombstones. It reloads current file content and refuses unsafe writes when it finds broken boundaries, malformed metadata, duplicate IDs, or conflict markers. A sync tool can restore older content or produce a structurally invalid merge; resolve that file through your normal workflow.
 
-使用独立测试 Vault 验证文件操作和标注行为；不要把个人 Vault、同步凭据或用户阅读材料提交到本仓库。
+Do not remove or alter generated metadata to edit a comment. If a note needs repair, open it from the Reading notes button and repair its structure before retrying. An existing unrelated note at the companion filename will not be overwritten.
+
+## Development and verification
+
+```sh
+npm run dev          # Watch and rebuild main.js
+npm run typecheck    # TypeScript validation
+npm test             # Persistence, anchoring, PDF geometry, and UI tests
+npm run check        # Type checking and tests
+npm run package      # Build installable files in dist/marglow/
+npm run smoke:mac    # Actual Obsidian smoke test in an isolated local Vault
+```
+
+The Mac smoke test requires Obsidian at `/Applications/Obsidian.app` or an `OBSIDIAN_BIN` executable override. It creates its own application profile and Vault under ignored `dev/`, checks their identity before operating, and closes its own test process afterward. It does not install into or modify a personal Vault.
+
+See [the manual acceptance checklist](docs/TESTING.md) for device-specific verification and [AGENTS.md](AGENTS.md) for development principles. The detailed design document remains local under ignored `dev/` and is not included in Git.
+
+The runtime has no bundled third-party dependencies beyond the Obsidian API supplied by the host. Development references are used for API research only; their code is not shipped.

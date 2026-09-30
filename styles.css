@@ -1,0 +1,43 @@
+.marglow-ui {
+  z-index: 1000;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+}
+.marglow-toolbar, .marglow-composer, .marglow-choices {
+  position: fixed;
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+  background: var(--background-primary);
+  box-shadow: var(--shadow-s);
+}
+.marglow-ui button { min-height: 32px; cursor: pointer; }
+.marglow-mobile button { min-height: 44px; }
+.marglow-color { width: 28px; border-radius: 50%; padding: 0; border: 2px solid var(--background-modifier-border); }
+.marglow-mobile .marglow-color { width: 44px; }
+.marglow-yellow { --marglow-color: #f6cd53; }
+.marglow-green { --marglow-color: #72c890; }
+.marglow-blue { --marglow-color: #79b7ed; }
+.marglow-pink { --marglow-color: #e997b7; }
+.marglow-color { background: var(--marglow-color); }
+.marglow-composer { flex-direction: column; width: 360px; max-height: 80vh; overflow: auto; }
+.marglow-composer label { font-weight: 600; }
+.marglow-composer textarea { width: 100%; min-height: 100px; resize: vertical; font: inherit; }
+.marglow-composer-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.marglow-choices { flex-direction: column; max-height: 260px; overflow: auto; }
+.marglow-choices button { text-align: left; border-left: 4px solid var(--marglow-color); white-space: normal; }
+.marglow-error { margin: 4px 0; color: var(--text-error); max-width: 350px; }
+.marglow-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; }
+.marglow-highlight { position: absolute; background: var(--marglow-color); opacity: 0.32; pointer-events: none; border-radius: 2px; }
+.marglow-highlight[data-comment="true"] { border-bottom: 2px solid var(--marglow-color); }
+.marglow-source { position: relative; }
+.marglow-file-tools { position: sticky; top: 4px; height: 0; display: flex; justify-content: flex-end; gap: 6px; z-index: 5; pointer-events: none; }
+.marglow-file-tools button { pointer-events: auto; font-size: var(--font-ui-smaller); opacity: 0.85; }
+.marglow-file-tools[data-error="true"] button { color: var(--text-error); }
+.marglow-note-actions { display: flex; gap: 6px; }
+@media (prefers-reduced-motion: no-preference) {
+  .marglow-toolbar { animation: marglow-appear 80ms ease-out; }
+  @keyframes marglow-appear { from { opacity: 0; } to { opacity: 1; } }
+}
