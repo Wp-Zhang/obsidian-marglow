@@ -1,4 +1,5 @@
 import { COLORS, type Annotation, type CapturedSelection, type Color } from "./model";
+import { setAnnotationActionIcon } from "./action-icons";
 
 export interface Actions {
   highlight(color: Color, comment?: string): Promise<void>;
@@ -67,7 +68,7 @@ export class AnnotationUI {
       colorButton(panel, color, () => this.run(() => actions.highlight(color)));
     }
     this.button(panel, annotation?.comment ? "Edit comment" : "Comment", () => this.composer(actions, annotation));
-    if (actions.delete) this.button(panel, "Delete", () => this.run(actions.delete!));
+    if (actions.delete) setAnnotationActionIcon(this.button(panel, "", () => this.run(actions.delete!)), "delete");
     this.position();
     if (annotation?.comment) this.composer(actions, annotation);
   }
@@ -136,11 +137,9 @@ export class AnnotationUI {
       if (initial) {
         const remove = this.button(buttons, "", () => { input.value = ""; return commit(); });
         remove.className = "marglow-remove-comment";
-        remove.setAttribute("aria-label", "Remove comment");
-        remove.title = "Remove comment (keep highlight)";
-        remove.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M19 6l-1 14H6L5 6M9 6V3h6v3M10 10v6M14 10v6"/></svg>';
+        setAnnotationActionIcon(remove, "remove-comment");
       }
-      if (actions.delete && !host) this.button(buttons, "Delete annotation", () => this.run(actions.delete!));
+      if (actions.delete && !host) setAnnotationActionIcon(this.button(buttons, "", () => this.run(actions.delete!)), "delete");
     }
     input.addEventListener("keydown", event => {
       if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); void commit(); }

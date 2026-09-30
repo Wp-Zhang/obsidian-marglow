@@ -1,4 +1,5 @@
 import type { Annotation } from "./model";
+import { setAnnotationActionIcon } from "./action-icons";
 
 /** A per-document review list. It only displays companion-note data. */
 export class AnnotationSidebar {
@@ -55,7 +56,8 @@ export class AnnotationSidebar {
       time.textContent = new Date(annotation.updatedAt).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
       time.title = `Created: ${new Date(annotation.createdAt).toLocaleString()}\nUpdated: ${new Date(annotation.updatedAt).toLocaleString()}`;
       const remove = document.createElement("button");
-      remove.type = "button"; remove.className = "marglow-comment-delete"; remove.textContent = "Delete";
+      remove.type = "button"; remove.className = "marglow-comment-delete";
+      setAnnotationActionIcon(remove, "delete");
       remove.setAttribute("aria-label", "Delete annotation"); remove.disabled = !!error;
       remove.addEventListener("click", () => this.remove(annotation));
       card.append(jump, comment, time, remove);

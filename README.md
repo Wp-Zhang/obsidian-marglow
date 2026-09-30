@@ -20,7 +20,7 @@ The name combines **margin** and **glow**.
 
 ## Status
 
-**0.1.11 is an initial development build**, not a Community Plugins release. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
+**0.1.12 is an initial development build**, not a Community Plugins release. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
 
 The Markdown page toolbar stays flush with the top of the reading pane. A persistent page toolbar offers color selection, icon tools for Highlight, Underline, and Comment, and Reading notes. Choose a color before selecting text; activate Highlight to mark subsequent selections, or Comment to write on the next selection. Click the active tool again to turn it off. Floating selection tools remain available.
 

@@ -33,10 +33,11 @@
 .marglow-composer label { font-weight: 600; }
 .marglow-composer textarea { width: 100%; min-height: 100px; resize: vertical; font: inherit; }
 .marglow-composer-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.marglow-ui button.marglow-remove-comment { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; padding: 6px; margin-left: auto; background: transparent; border: 0; box-shadow: none; color: var(--text-muted); }
-.marglow-remove-comment svg { width: 18px; height: 18px; }
-.marglow-ui button.marglow-remove-comment:hover { background: var(--background-modifier-hover); color: var(--text-error); }
-.marglow-mobile button.marglow-remove-comment { flex-basis: 44px; width: 44px; }
+.marglow-ui button.marglow-icon-button { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; padding: 6px; background: transparent; border: 0; box-shadow: none; color: var(--text-muted); }
+.marglow-icon-button svg { width: 18px; height: 18px; }
+.marglow-ui button.marglow-icon-button:hover { background: var(--background-modifier-hover); color: var(--text-error); }
+.marglow-remove-comment { margin-left: auto; }
+.marglow-mobile button.marglow-icon-button { flex-basis: 44px; width: 44px; }
 .marglow-choices { flex-direction: column; max-height: 260px; overflow: auto; }
 .marglow-choices button { text-align: left; border-left: 4px solid var(--marglow-color); white-space: normal; }
 .marglow-error { margin: 4px 0; color: var(--text-error); max-width: 350px; }
@@ -81,7 +82,7 @@
 .marglow-comment-time { display: block; margin-top: 6px; color: var(--text-muted); font-size: var(--font-ui-smaller); }
 
 .marglow-comment-card { position: relative; }
-.marglow-comment-time { padding-right: 64px; }
+.marglow-comment-time { padding-right: 40px; }
 .marglow-comment-delete { position: absolute; right: 8px; bottom: 8px; opacity: 0; pointer-events: none; color: var(--text-error); }
 .marglow-comment-card:hover .marglow-comment-delete, .marglow-comment-card:focus-within .marglow-comment-delete, .marglow-mobile .marglow-comment-delete { opacity: 1; pointer-events: auto; }
 @media (hover: none) { .marglow-comment-delete { opacity: 1; pointer-events: auto; } }
