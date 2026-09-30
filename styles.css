@@ -68,3 +68,10 @@
 
 .marglow-comments-view { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
 .marglow-comments-source { padding: 8px 12px; color: var(--text-muted); font-size: var(--font-ui-smaller); overflow-wrap: anywhere; border-bottom: 1px solid var(--background-modifier-border); }
+
+.marglow-reading-container { display: flex; flex-direction: column; padding: 0; }
+.marglow-reading-container > .marglow-file-tools { position: relative; top: 0; flex: 0 0 auto; margin: 0; }
+.marglow-reading-container > .markdown-preview-view { flex: 1 1 auto; min-height: 0; height: auto; }
+.marglow-ui button.marglow-comment-text { display: block; width: 100%; padding: 4px 0; height: auto; text-align: left; font: inherit; color: var(--text-normal); background: transparent; box-shadow: none; border: 0; border-radius: 3px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.marglow-ui button.marglow-comment-text:hover { background: var(--background-modifier-hover); }
+.marglow-comment-time { display: block; margin-top: 6px; color: var(--text-muted); font-size: var(--font-ui-smaller); }

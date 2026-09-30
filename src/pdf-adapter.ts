@@ -51,6 +51,8 @@ export function rectFromPdf(rect: Rect, box: DOMRect, viewport: PageViewport): D
 }
 
 export class PdfAdapter implements DocumentAdapter {
+  private hosts = new WeakMap<DOMRect, HTMLElement>();
+  overlayHost(rect: DOMRect): HTMLElement | null { return this.hosts.get(rect) ?? null; }
   constructor(readonly root: HTMLElement, private view: unknown, private fingerprint: string) {}
 
   capture(selection: Selection): CapturedSelection | null {
@@ -114,7 +116,11 @@ export class PdfAdapter implements DocumentAdapter {
       if (!page || !page.viewport || !page.div.isConnected) continue;
       const box = pageBox(page);
       if (!box.width || !box.height) continue;
-      rects.push(...segment.rects.map(rect => rectFromPdf(rect, box, page.viewport)));
+      for (const geometry of segment.rects) {
+        const rect = rectFromPdf(geometry, box, page.viewport);
+        this.hosts.set(rect, page.div);
+        rects.push(rect);
+      }
     }
     return rects;
   }

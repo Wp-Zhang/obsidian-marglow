@@ -12,7 +12,6 @@ export interface SessionCallbacks {
   cancelReassociation(): void;
   onUiClosed(): void;
   openComments(session: AnnotationSession): void;
-  closeComments(): void;
 }
 
 export class AnnotationSession {
@@ -20,12 +19,14 @@ export class AnnotationSession {
   entries: Entry[] = [];
   private located: LocatedAnnotation[] = [];
   private overlay: HTMLElement;
+  private overlays = new Map<HTMLElement, HTMLElement>();
+  private readingContainer: HTMLElement | null = null;
   private tools: HTMLElement;
   private notesButton: HTMLButtonElement;
   private abort = new AbortController();
   private observer: MutationObserver;
   private resize: ResizeObserver;
-  private timer: ReturnType<typeof setTimeout> | undefined;
+  private frame: number | undefined;
   private selectionTimer: ReturnType<typeof setTimeout> | undefined;
   private version = 0;
   private disposed = false;
@@ -77,7 +78,7 @@ export class AnnotationSession {
     this.pageComment.textContent = "Comment";
     this.pageComment.addEventListener("click", () => this.chooseTool("comment"));
     this.tools.append(this.pageHighlight, this.pageComment);
-    this.sidebar = new AnnotationSidebar(document, callbacks.closeComments, (annotation, edit) => { void this.selectFromSidebar(annotation, edit); }, id => this.emphasize(this.activeId, id));
+    this.sidebar = new AnnotationSidebar(document, (annotation, edit) => { void this.selectFromSidebar(annotation, edit); }, id => this.emphasize(this.activeId, id));
     this.ui.navigationContainer = this.sidebar.element;
     this.sidebar.element.classList.toggle("marglow-mobile", mobile);
     this.sidebarButton = document.createElement("button");
@@ -91,8 +92,13 @@ export class AnnotationSession {
     this.tools.append(this.notesButton);
     this.updatePageTools();
     root.classList.add("marglow-source");
-    root.prepend(this.tools);
+    if (source.type === "markdown" && root.parentElement) {
+      this.readingContainer = root.parentElement;
+      this.readingContainer.classList.add("marglow-reading-container");
+      this.readingContainer.insertBefore(this.tools, root);
+    } else root.prepend(this.tools);
     root.append(this.overlay);
+    this.overlays.set(root, this.overlay);
     const signal = this.abort.signal;
     root.addEventListener("pointerdown", event => { this.pointerStart = { x: event.clientX, y: event.clientY }; this.pointerActive = true; }, { signal });
     document.addEventListener("pointerup", () => {
@@ -119,12 +125,13 @@ export class AnnotationSession {
       this.emphasize(this.activeId, hits.find(hit => hit.annotation.id === this.activeId)?.annotation.id ?? hits[0]?.annotation.id ?? null);
     }, { signal });
     root.addEventListener("pointerleave", () => this.emphasize(this.activeId, null), { signal });
-    root.addEventListener("scroll", () => this.scheduleRender(), { capture: true, signal });
+    root.addEventListener("scroll", () => { if (this.source.type !== "pdf") this.scheduleRender(); }, { capture: true, signal });
     document.defaultView?.addEventListener("resize", () => this.scheduleRender(), { signal });
     this.observer = new MutationObserver(records => {
       const external = records.some(record => {
         const target = record.target.nodeType === 1 ? record.target as Element : record.target.parentElement;
         if (target?.closest(".marglow-ui, .marglow-overlay")) return false;
+        if (record.type === "childList" && [...record.removedNodes].some(node => [...this.overlays.values()].includes(node as HTMLElement))) return true;
         if (record.type === "childList" && [...record.addedNodes, ...record.removedNodes].every(node => node.nodeType === 1 && (node as Element).matches(".marglow-ui, .marglow-overlay"))) return false;
         return true;
       });
@@ -199,6 +206,7 @@ export class AnnotationSession {
 
   private chooseTool(mode: "highlight" | "comment"): void {
     if (this.ui.hasDraft || this.ui.isBusy) return;
+    if (this.toolMode === mode) { this.toolMode = null; this.updatePageTools(); return; }
     const selection = this.currentSelection();
     if (selection) { void this.pageAction(selection, mode); return; }
     this.ui.close();
@@ -255,16 +263,18 @@ export class AnnotationSession {
   }
 
   private scheduleRender(): void {
-    clearTimeout(this.timer);
-    this.timer = setTimeout(() => this.render(), 40);
+    if (this.frame !== undefined || this.disposed || this.suspended) return;
+    this.frame = this.adapter.root.ownerDocument.defaultView!.requestAnimationFrame(() => {
+      this.frame = undefined;
+      this.render();
+    });
   }
 
   private render(): void {
     if (this.disposed || this.suspended || this.error) return;
     const root = this.adapter.root;
     this.adapter.refreshLayout();
-    const box = root.getBoundingClientRect();
-    const nodes: HTMLElement[] = [];
+    const layers = new Map<HTMLElement, HTMLElement[]>();
     const located: LocatedAnnotation[] = [];
     this.unlocated = new Set();
     const annotations = this.entries.map(entry => entry.annotation);
@@ -274,20 +284,40 @@ export class AnnotationSession {
       if (rects === null) { this.unlocated.add(annotation.id); continue; }
       located.push({ annotation, rects });
       for (const rect of rects) {
+        const host = this.adapter.overlayHost?.(rect) ?? root;
+        const box = host.getBoundingClientRect();
+        const nodes = layers.get(host) ?? [];
+        layers.set(host, nodes);
         const element = root.ownerDocument.createElement("div");
         element.className = `marglow-highlight marglow-${annotation.color}`;
         element.dataset.annotationId = annotation.id;
         element.dataset.comment = String(!!annotation.comment.trim());
-        element.style.left = `${rect.left - box.left + root.scrollLeft}px`;
-        element.style.top = `${rect.top - box.top + root.scrollTop}px`;
+        element.style.left = `${rect.left - box.left - host.clientLeft + host.scrollLeft}px`;
+        element.style.top = `${rect.top - box.top - host.clientTop + host.scrollTop}px`;
         element.style.width = `${rect.width}px`;
         element.style.height = `${rect.height}px`;
         nodes.push(element);
       }
     }
-    this.overlay.style.width = `${root.scrollWidth}px`;
-    this.overlay.style.height = `${root.scrollHeight}px`;
-    this.overlay.replaceChildren(...nodes);
+    for (const [host, overlay] of this.overlays) {
+      if (!layers.has(host)) {
+        if (host === root) overlay.replaceChildren();
+        else { overlay.remove(); this.overlays.delete(host); }
+      }
+    }
+    for (const [host, nodes] of layers) {
+      let overlay = this.overlays.get(host);
+      if (!overlay) {
+        overlay = root.ownerDocument.createElement("div");
+        overlay.className = "marglow-overlay";
+        overlay.setAttribute("aria-hidden", "true");
+        host.append(overlay); this.overlays.set(host, overlay);
+      }
+      if (overlay.parentElement !== host) host.append(overlay);
+      overlay.style.width = `${host.scrollWidth}px`;
+      overlay.style.height = `${host.scrollHeight}px`;
+      overlay.replaceChildren(...nodes);
+    }
     this.located = located;
     if (this.activeId && this.activeId !== this.preview?.id && !annotations.some(annotation => annotation.id === this.activeId)) this.activeId = null;
     this.sidebar.render(this.entries.map(entry => entry.annotation).sort((a, b) => {
@@ -301,12 +331,13 @@ export class AnnotationSession {
   }
 
   private hits(x: number, y: number): LocatedAnnotation[] {
+    if (this.source.type === "pdf") this.located = this.entries.map(entry => ({ annotation: entry.annotation, rects: this.adapter.locate(entry.annotation) ?? [] }));
     return this.located.filter(item => item.rects.some(rect => x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom));
   }
 
   private emphasize(active: string | null, hovered: string | null, reveal = false): void {
     this.activeId = active; this.hoveredId = hovered;
-    for (const node of this.overlay.children) {
+    for (const overlay of this.overlays.values()) for (const node of overlay.children) {
       const element = node as HTMLElement;
       element.classList.toggle("is-active", element.dataset.annotationId === active);
       element.classList.toggle("is-hovered", element.dataset.annotationId === hovered);
@@ -336,13 +367,15 @@ export class AnnotationSession {
   dispose(): void {
     this.disposed = true;
     this.version++;
-    clearTimeout(this.timer);
+    if (this.frame !== undefined) this.adapter.root.ownerDocument.defaultView!.cancelAnimationFrame(this.frame);
     clearTimeout(this.selectionTimer);
     this.abort.abort();
     this.observer.disconnect();
     this.resize.disconnect();
     this.ui.dispose();
-    this.overlay.remove();
+    for (const overlay of this.overlays.values()) overlay.remove();
+    this.overlays.clear();
+    this.readingContainer?.classList.remove("marglow-reading-container");
     this.tools.remove();
     this.sidebar.dispose();
     this.adapter.root.classList.remove("marglow-source");
@@ -351,7 +384,7 @@ export class AnnotationSession {
 
   suspend(): void {
     this.suspended = true;
-    this.overlay.replaceChildren();
+    for (const overlay of this.overlays.values()) overlay.replaceChildren();
     this.located = [];
   }
 }

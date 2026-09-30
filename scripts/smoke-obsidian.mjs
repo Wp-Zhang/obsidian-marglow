@@ -78,8 +78,17 @@ try {
   await trust.click();
   await page.waitForSelector(".marglow-file-tools button");
   await page.evaluate(() => app.setting.close());
+  const closeSidebar = () => page.evaluate(() => {
+    const source = app.plugins.plugins.marglow.commentsSource;
+    app.workspace.detachLeavesOfType("marglow-comments");
+    if (source) app.workspace.setActiveLeaf(source.leaf, { focus: true });
+  });
   const pageTools = page.getByRole("toolbar", { name: "Page annotation tools" });
   assert.equal(await pageTools.locator(".marglow-color").count(), 4);
+  assert.ok(await page.evaluate(() => {
+    const toolbar = document.querySelector('.marglow-file-tools'), container = document.querySelector('.marglow-reading-container');
+    return toolbar.parentElement === container && Math.abs(toolbar.getBoundingClientRect().top - container.getBoundingClientRect().top) < 1;
+  }));
   for (const dark of [false, true]) {
     const swatches = await page.evaluate(dark => {
       document.body.classList.toggle("theme-dark", dark);
@@ -147,6 +156,8 @@ try {
   await pageTools.getByRole("button", { name: "Comments", exact: true }).click();
   const sidebar = page.getByRole("complementary", { name: "Annotation comments" });
   await sidebar.waitFor({ state: "visible" });
+  assert.equal(await sidebar.getByRole("button", { name: "Close", exact: true }).count(), 0);
+  assert.equal(await sidebar.locator("time").count(), 2);
   const card = sidebar.locator('.marglow-comment-card').filter({ hasText: "Direct edit." });
   await card.getByRole("button", { name: /^Go to annotation:/ }).click();
   await page.waitForFunction(id => [...document.querySelectorAll('.marglow-highlight.is-active')].every(node => node.dataset.annotationId === id) && document.querySelectorAll('.marglow-highlight.is-active').length > 0, ids[0]);
@@ -157,7 +168,7 @@ try {
   const bodyRect = await page.locator(`.marglow-highlight[data-annotation-id="${ids[0]}"]`).first().boundingBox();
   await page.mouse.move(bodyRect.x + bodyRect.width - 2, bodyRect.y + bodyRect.height / 2);
   await page.waitForFunction(id => !!document.querySelector(`.marglow-comment-card.is-hovered[data-annotation-id="${id}"]`), ids[0]);
-  await card.getByRole("button", { name: "Edit comment", exact: true }).click();
+  await card.locator(".marglow-comment-text").click();
   await page.getByRole("textbox", { name: "Comment", exact: true }).fill("Sidebar edit.");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await page.waitForFunction(() => document.querySelector('.marglow-sidebar')?.textContent.includes("Sidebar edit."));
@@ -168,7 +179,7 @@ try {
   assert.equal(await sidebar.evaluate(element => !!element.closest('.mod-right-split')), true);
   assert.equal(await page.locator('.marglow-sidebar-docked, .marglow-pane').count(), 0);
   await page.screenshot({ path: `${output}/comments-sidebar.png` });
-  await sidebar.getByRole("button", { name: "Close", exact: true }).click();
+  await closeSidebar();
   passed("Markdown selected outline, bidirectional hover, sidebar navigation/edit and external update");
 
 
@@ -235,6 +246,40 @@ try {
   };
   await page.waitForFunction(geometryMatches);
   passed("PDF cross-page annotation with correctly aligned geometry");
+  await page.setViewportSize({ width: 1100, height: 650 });
+  await page.evaluate(() => { app.workspace.getLeavesOfType("pdf")[0].view.viewer.child.pdfViewer.pdfViewer.currentScale = 2; });
+  await page.waitForFunction(() => app.workspace.getLeavesOfType("pdf")[0].view.viewer.child.pdfViewer.pdfViewer.currentScale === 2);
+  await page.waitForFunction(geometryMatches);
+  const scrollError = await page.evaluate(async () => {
+    const first = document.querySelector('.page[data-page-number="1"] .textLayer span');
+    const highlight = document.querySelector('.page[data-page-number="1"] .marglow-highlight');
+    if (!highlight) throw new Error("PDF highlight must belong to its page.");
+    let scroller = first.parentElement;
+    while (scroller && !(/auto|scroll/.test(getComputedStyle(scroller).overflowY) && scroller.scrollHeight > scroller.clientHeight)) scroller = scroller.parentElement;
+    if (!scroller) {
+      const chain = []; let element = first.parentElement;
+      while (element) { chain.push([element.className, getComputedStyle(element).overflowY, element.scrollHeight, element.clientHeight]); element = element.parentElement; }
+      throw new Error("Missing PDF scroll container: " + JSON.stringify(chain));
+    }
+    const origin = scroller.scrollTop;
+    scroller.scrollTop = 70;
+    if (scroller.scrollTop < 20) throw new Error("PDF fixture did not scroll");
+    let worst = 0;
+    for (let frame = 0; frame < 20; frame++) {
+      scroller.scrollTop = origin + (frame % 2 ? 180 : 70);
+      const currentText = document.querySelector('.page[data-page-number="1"] .textLayer span');
+      const currentHighlight = document.querySelector('.page[data-page-number="1"] .marglow-highlight');
+      if (!currentText || !currentHighlight) throw new Error("PDF layer missing during scroll");
+      const range = document.createRange(); range.selectNodeContents(currentText.firstChild);
+      const text = range.getBoundingClientRect(), overlay = currentHighlight.getBoundingClientRect();
+      worst = Math.max(worst, ...["left", "top", "width", "height"].map(key => Math.abs(text[key] - overlay[key])));
+      await new Promise(requestAnimationFrame);
+    }
+    scroller.scrollTop = origin;
+    return worst;
+  });
+  assert.ok(scrollError < 3, `PDF scrolling drift: ${scrollError}px`);
+  passed("PDF page-attached highlights follow every scroll frame without delayed positioning");
   if (await sidebar.isHidden()) await pageTools.getByRole("button", { name: "Comments", exact: true }).click();
   const pdfCard = sidebar.locator('.marglow-comment-card').first();
   await pdfCard.getByRole("button", { name: /^Go to annotation:/ }).click();
@@ -242,7 +287,7 @@ try {
   await pdfCard.hover();
   assert.equal(await page.locator('.marglow-highlight.is-hovered').count(), 3);
   await page.screenshot({ path: `${output}/pdf-comments-sidebar.png` });
-  await sidebar.getByRole("button", { name: "Close", exact: true }).click();
+  await closeSidebar();
   passed("PDF sidebar navigation and cross-page selection/hover emphasis");
   await pageTools.getByRole("button", { name: "Comments", exact: true }).click();
   await page.evaluate(async () => app.workspace.getLeaf("tab").openFile(app.vault.getFileByPath("Renamed.md"), { state: { mode: "preview" } }));
@@ -253,7 +298,7 @@ try {
   await page.evaluate(() => app.workspace.setActiveLeaf(app.workspace.getLeavesOfType("pdf")[0], { focus: true }));
   await page.waitForFunction(() => document.querySelector('.marglow-comments-source')?.textContent === "Smoke.pdf");
   assert.equal(await sidebar.locator('.marglow-comment-card').count(), 1);
-  await sidebar.getByRole("button", { name: "Close", exact: true }).click();
+  await closeSidebar();
   await page.evaluate(() => app.workspace.getLeavesOfType("markdown").filter(leaf => leaf.view.file?.path === "Renamed.md").forEach(leaf => leaf.detach()));
   await highlightCount(3);
   passed("Native right-sidebar tab follows source switches and retains association on focus");
@@ -282,6 +327,7 @@ try {
   await writeFile(`${output}/report.json`, JSON.stringify({ title: await page.title(), checks }, null, 2));
   console.log(`Smoke artifacts: ${output}`);
 } catch (error) {
+  if (page) console.error(await page.evaluate(() => [...document.querySelectorAll('.page[data-page-number="1"] .canvasWrapper, .page[data-page-number="1"] .textLayer, .page[data-page-number="1"] .marglow-overlay, .marglow-highlight')].slice(0, 7).map(element => ({ class: element.className, rect: element.getBoundingClientRect().toJSON(), z: getComputedStyle(element).zIndex, opacity: getComputedStyle(element).opacity, color: getComputedStyle(element).backgroundColor }))));
   if (page) await page.screenshot({ path: `${output}/failure.png` }).catch(() => {});
   console.error(`Smoke artifacts: ${output}`);
   throw error;

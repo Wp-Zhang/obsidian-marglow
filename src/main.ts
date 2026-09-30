@@ -139,7 +139,6 @@ export default class MarglowPlugin extends Plugin {
           if (this.stopped || epoch !== this.epoch || !candidate.root.isConnected) { this.removeChild(owner); continue; }
           const callbacks: SessionCallbacks = {
             openComments: session => { void this.openComments(session).catch(error => this.report(String(error))); },
-            closeComments: () => this.closeComments(),
             report: message => this.report(message),
             openNote: source => this.openNote(source),
             cancelReassociation: () => { this.pending = null; },
@@ -177,12 +176,6 @@ export default class MarglowPlugin extends Plugin {
     for (const leaf of this.app.workspace.getLeavesOfType(COMMENTS_VIEW)) {
       if (leaf.view instanceof CommentsView) leaf.view.setSession(session);
     }
-  }
-
-  private closeComments(): void {
-    const sourceLeaf = this.commentsSource?.leaf;
-    this.app.workspace.detachLeavesOfType(COMMENTS_VIEW);
-    if (sourceLeaf) this.app.workspace.setActiveLeaf(sourceLeaf, { focus: true });
   }
 
   private async openComments(session?: AnnotationSession): Promise<void> {

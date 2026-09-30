@@ -55,6 +55,7 @@ export interface DocumentAdapter {
   root: HTMLElement;
   capture(selection: Selection): CapturedSelection | null;
   locate(annotation: Annotation): DOMRect[] | null;
+  overlayHost?(rect: DOMRect): HTMLElement | null;
   matches(annotation: Annotation, selection: CapturedSelection): boolean;
   refreshLayout(): void;
   scrollTo?(annotation: Annotation): boolean;

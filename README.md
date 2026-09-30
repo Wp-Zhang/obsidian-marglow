@@ -8,9 +8,9 @@ The name combines **margin** and **glow**.
 
 ## Status
 
-**0.1.3 is an initial development build**, not a Community Plugins release. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
+**0.1.4 is an initial development build**, not a Community Plugins release. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
 
-A persistent page toolbar offers color selection, Highlight mode, Comment, and Reading notes. Choose a color before selecting text; activate Highlight to mark subsequent selections, or Comment to write on the next selection. Click the active tool again to turn it off. Floating selection tools remain available.
+The Markdown page toolbar stays flush with the top of the reading pane. A persistent page toolbar offers color selection, Highlight mode, Comment, and Reading notes. Choose a color before selecting text; activate Highlight to mark subsequent selections, or Comment to write on the next selection. Click the active tool again to turn it off. Floating selection tools remain available.
 
 ## Features
 
@@ -18,7 +18,7 @@ A persistent page toolbar offers color selection, Highlight mode, Comment, and R
 - A per-document **Comments** sidebar with quotes, comments, bidirectional hover, click-to-jump, and comment editing. Comments opens as a native Obsidian right-sidebar tab beside Outline and Backlinks, and follows the active Markdown/PDF document. Obsidian controls its sizing and mobile drawer.
 - Four highlight colors and a lightweight comment composer, directly beside a text selection.
 - Markdown **Reading view**, including selections across formatting and paragraphs.
-- Text-selectable PDFs, with multiple page segments under one annotation and highlights that follow zoom and rotation.
+- Text-selectable PDFs, with multiple page segments under one annotation and page-attached highlights that follow scrolling, zoom, and rotation.
 - Independent overlapping annotations; exact selections reuse an existing annotation.
 - Autosave comments when clicking or tapping outside the composer. Save/cancel buttons, `Cmd + Enter`, and `Esc` are available.
 - A companion `source.md.annotations.md` or `source.pdf.annotations.md` note containing readable quotes, comments, stable block IDs, and hidden positioning metadata.
@@ -50,7 +50,7 @@ For iOS, place those same three files in the target Vault's plugin directory usi
 2. Select text, then pick a color or choose **Comment**. There is no need to open a reading note first.
 3. Write a comment and save explicitly or click/tap outside. Cancel discards the current unsaved edit; saving an empty existing comment keeps its highlight.
 4. Click highlighted text to change its color, edit/remove its comment, or delete the annotation. For overlaps, choose an entry from the short list.
-5. Open **Comments** to review annotations. Hover either side to identify its counterpart; click a card to navigate, or use Add/Edit comment. Unlocated entries remain listed.
+5. Open **Comments** to review annotations. Hover either side to identify its counterpart; click its quote to navigate, or click the comment itself to edit. Each card shows its last update time; hover the time for creation and update details. Unlocated entries remain listed.
 6. Use the **Reading notes** button or command to open the companion note. Edit comments between their markers, add your own notes outside annotation entries, or remove a complete entry.
 
 Navigation uses verified locations. If a long Markdown document has not rendered the target passage yet, scroll to it before retrying; Marglow reports this rather than guessing a location.

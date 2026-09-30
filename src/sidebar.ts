@@ -7,15 +7,14 @@ export class AnnotationSidebar {
   private cards = new Map<string, HTMLElement>();
   private signature = "";
 
-  constructor(document: Document, close: () => void, select: (annotation: Annotation, edit: boolean) => void, hover: (id: string | null) => void) {
+  constructor(document: Document, select: (annotation: Annotation, edit: boolean) => void, hover: (id: string | null) => void) {
     this.element = document.createElement("aside");
     this.element.className = "marglow-ui marglow-sidebar";
     this.element.setAttribute("aria-label", "Annotation comments");
     const header = document.createElement("div");
     header.className = "marglow-sidebar-header";
     const title = document.createElement("strong"); title.textContent = "Comments";
-    const dismiss = document.createElement("button"); dismiss.type = "button"; dismiss.textContent = "Close"; dismiss.addEventListener("click", close);
-    header.append(title, dismiss);
+    header.append(title);
     this.list = document.createElement("div"); this.list.className = "marglow-comment-list";
     this.element.append(header, this.list);
     this.select = select; this.hover = hover;
@@ -42,20 +41,27 @@ export class AnnotationSidebar {
       const jump = document.createElement("button"); jump.type = "button";
       jump.className = "marglow-comment-jump"; jump.setAttribute("aria-label", `Go to annotation: ${annotation.quote.slice(0, 80)}`);
       const quote = document.createElement("blockquote"); quote.textContent = annotation.quote;
-      const comment = document.createElement("p"); comment.className = "marglow-comment-text";
+      const comment = document.createElement("button"); comment.type = "button"; comment.className = "marglow-comment-text";
+      comment.setAttribute("aria-label", `Edit comment: ${annotation.quote.slice(0, 80)}`);
+      comment.disabled = !!error;
+      comment.addEventListener("click", () => this.select(annotation, true));
       comment.textContent = annotation.comment || "Highlight · no comment";
-      jump.append(quote, comment); jump.disabled = !!error;
+      jump.append(quote); jump.disabled = !!error;
       jump.addEventListener("click", () => this.select(annotation, false));
-      const edit = document.createElement("button"); edit.type = "button"; edit.textContent = annotation.comment ? "Edit comment" : "Add comment";
-      edit.disabled = !!error; edit.addEventListener("click", () => this.select(annotation, true));
-      card.append(jump);
+      const time = document.createElement("time");
+      time.className = "marglow-comment-time";
+      time.dateTime = annotation.updatedAt;
+      time.textContent = new Date(annotation.updatedAt).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+      time.title = `Created: ${new Date(annotation.createdAt).toLocaleString()}\nUpdated: ${new Date(annotation.updatedAt).toLocaleString()}`;
+      card.append(jump, comment, time);
       if (unlocated.has(annotation.id)) {
         const status = document.createElement("p"); status.className = "marglow-sidebar-status"; status.textContent = "Unlocated · reassociate from Reading notes"; card.append(status);
       }
-      card.append(edit);
       card.addEventListener("pointermove", () => this.hover(annotation.id));
       card.addEventListener("pointerenter", () => this.hover(annotation.id));
       card.addEventListener("pointerleave", () => this.hover(null));
+      comment.addEventListener("focus", () => this.hover(annotation.id));
+      comment.addEventListener("blur", () => this.hover(null));
       jump.addEventListener("focus", () => this.hover(annotation.id));
       jump.addEventListener("blur", () => this.hover(null));
       this.cards.set(annotation.id, card); this.list.append(card);
