@@ -99,11 +99,12 @@ export class AnnotationUI {
     const panel = this.panel("marglow-composer");
     if (host) {
       this.inlineHost = host; host.classList.add("is-editing");
-      panel.classList.add("marglow-inline-composer"); host.append(panel);
+      panel.classList.add("marglow-inline-composer"); host.insertBefore(panel, host.querySelector(".marglow-comment-time"));
     }
     panel.setAttribute("role", "dialog");
     panel.setAttribute("aria-label", annotation ? "Edit annotation comment" : "Add annotation comment");
     const label = this.document.createElement("label");
+    label.className = "marglow-composer-label";
     label.textContent = "Comment";
     const input = this.document.createElement("textarea");
     input.setAttribute("aria-label", "Comment");
@@ -132,7 +133,13 @@ export class AnnotationUI {
     this.button(buttons, "Save", commit).classList.add("mod-cta");
     this.button(buttons, "Cancel", () => this.close());
     if (annotation) {
-      if (initial) this.button(buttons, "Remove comment", () => { input.value = ""; return commit(); });
+      if (initial) {
+        const remove = this.button(buttons, "", () => { input.value = ""; return commit(); });
+        remove.className = "marglow-remove-comment";
+        remove.setAttribute("aria-label", "Remove comment");
+        remove.title = "Remove comment (keep highlight)";
+        remove.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M19 6l-1 14H6L5 6M9 6V3h6v3M10 10v6M14 10v6"/></svg>';
+      }
       if (actions.delete && !host) this.button(buttons, "Delete annotation", () => this.run(actions.delete!));
     }
     input.addEventListener("keydown", event => {

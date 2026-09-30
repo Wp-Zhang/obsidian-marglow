@@ -8,9 +8,19 @@ Marglow adds in-place highlights and comments to Markdown and PDF reading in Obs
 
 The name combines **margin** and **glow**.
 
+## Screenshots
+
+**Markdown: highlight, underline, and edit comments in the sidebar.** The active annotation is outlined in the document and its matching card.
+
+![Markdown highlights and an underline with inline sidebar comment editing](assets/screenshots/markdown-comments.png)
+
+**PDF: annotate a real paper while keeping your comments alongside it.** Shown with Vaswani et al., [Attention Is All You Need](https://arxiv.org/abs/1706.03762v5); the comments are demonstration reading notes.
+
+![PDF highlights and underlines in Attention Is All You Need, linked to sidebar comments](assets/screenshots/pdf-comments.png)
+
 ## Status
 
-**0.1.10 is an initial development build**, not a Community Plugins release. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
+**0.1.11 is an initial development build**, not a Community Plugins release. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
 
 The Markdown page toolbar stays flush with the top of the reading pane. A persistent page toolbar offers color selection, icon tools for Highlight, Underline, and Comment, and Reading notes. Choose a color before selecting text; activate Highlight to mark subsequent selections, or Comment to write on the next selection. Click the active tool again to turn it off. Floating selection tools remain available.
 

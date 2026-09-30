@@ -5,7 +5,7 @@ import { annotation } from "./helpers";
 afterEach(() => document.body.replaceChildren());
 
 function button(text: string): HTMLButtonElement {
-  return [...document.querySelectorAll("button")].find(button => button.textContent === text)!;
+  return [...document.querySelectorAll("button")].find(button => button.textContent === text || button.getAttribute("aria-label") === text)!;
 }
 
 const selection = { quote: "Selected text", anchor: annotation().anchor, rect: new DOMRect(100, 100, 100, 20) };
