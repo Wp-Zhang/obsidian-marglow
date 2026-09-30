@@ -16,6 +16,7 @@ if (process.env.OBSIDIAN_ASAR) await copyFile(process.env.OBSIDIAN_ASAR, `${prof
 for (const file of ["main.js", "manifest.json", "styles.css"]) await copyFile(`dist/marglow/${file}`, `${vault}/.obsidian/plugins/marglow/${file}`);
 
 let markdown = "# Smoke test\n\nFirst **important sentence** with a [link](https://example.com).\n\nAnother paragraph for context.\n\n- A useful list item.\n\n| A | B |\n| --- | --- |\n| Table text | Context |\n";
+markdown += Array.from({length:80},(_,i)=>`\n\nReading paragraph ${i}: a longer document for testing native navigation while scrolling.`).join("");
 await writeFile(`${vault}/Smoke.md`, markdown);
 
 function pdfFixture(pageCount = 2) {
@@ -112,12 +113,20 @@ try {
   await control.click();assert.equal(await control.getAttribute('aria-pressed'),'true');
   const position=await page.evaluate(()=>{
     const toolbar=document.querySelector('.marglow-file-tools'),box=toolbar.getBoundingClientRect();
-    const padding=parseFloat(getComputedStyle(toolbar.parentElement).paddingTop);
-    return {top:box.top,inset:padding,paneTop:toolbar.parentElement.getBoundingClientRect().top};
+    const header=document.querySelector('.mod-root .view-header').getBoundingClientRect();
+    const root=document.querySelector('.markdown-preview-view');
+    return {top:box.top,headerBottom:header.bottom,rootTop:root.getBoundingClientRect().top};
   });
-  assert.ok(Math.abs(position.top-position.paneTop-position.inset)<1);
-  await page.evaluate(()=>document.querySelector('.markdown-preview-view').scrollTop=100);
-  assert.ok(Math.abs((await page.locator('.marglow-file-tools').boundingBox()).y-position.top)<1);
+  assert.ok(Math.abs(position.top-position.headerBottom)<2,JSON.stringify(position));
+  await page.evaluate(()=>document.querySelector('.markdown-preview-view').scrollTop=400);
+  await page.waitForFunction(()=>document.body.classList.contains('is-hidden-nav'));
+  await page.waitForFunction(()=>getComputedStyle(document.querySelector('.marglow-file-tools')).visibility==='hidden');
+  const hidden=await page.evaluate(()=>({top:document.querySelector('.markdown-preview-view').getBoundingClientRect().top,scroll:document.querySelector('.markdown-preview-view').scrollTop}));
+  assert.equal(hidden.top,position.rootTop);assert.ok(hidden.scroll>=399);
+  await page.evaluate(()=>document.querySelector('.markdown-preview-view').scrollTop=200);
+  await page.waitForFunction(()=>!document.body.classList.contains('is-hidden-nav'));
+  await page.waitForFunction(()=>getComputedStyle(document.querySelector('.marglow-file-tools')).visibility==='visible');
+  await control.click();
   await page.screenshot({path:`${output}/mobile-toolbar.png`});
   await page.getByRole('button',{name:/^Reading notes/}).click();
   await page.getByRole('complementary',{name:'Annotation comments'}).waitFor();

@@ -20,11 +20,11 @@ Marglow 为 Obsidian 中的 Markdown 与 PDF 提供就地高亮和评论。每�
 
 ## 当前状态
 
-**0.2.1 是 public beta**，可从 [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.1) 安装，尚未通过 Obsidian 社区目录审核。Mac 集成已在 Obsidian 1.8.10 的独立测试 Vault 中验证。代码采用 iOS 可用的运行时能力并提供触屏控件，但 **iOS 真机验收尚未完成**。PDF 集成使用 Obsidian 查看器内部接口，宿主更新后可能需要适配。
+**0.2.2 是 public beta**，可从 [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.2) 安装，尚未通过 Obsidian 社区目录审核。Mac 集成已在 Obsidian 1.8.10 的独立测试 Vault 中验证。代码采用 iOS 可用的运行时能力并提供触屏控件，但 **iOS 真机验收尚未完成**。PDF 集成使用 Obsidian 查看器内部接口，宿主更新后可能需要适配。
 
 Markdown 工具栏固定在阅读区域顶部，不随正文留白下移。页面常驻工具栏提供颜色选择、荧光笔 Highlight／下划线 Underline／消息框 Comment 图标和 Reading notes。Reading notes 直接展开原生右侧栏，不再新开文档标签页。可先选颜色，再开启 Highlight 标注后续选区；也可先点 Comment，再选择文字输入评论。再次点击已开启的工具即可关闭模式，选区浮动工具栏仍然保留。 移动端 Reading notes 使用图标加标注数量，工具栏保持单行。
 
-0.2.1 修复 iPhone 阅读视图工具栏的顶部导航留白，并修正缩放后的 PDF 标注坐标与页面裁剪。对于同页唯一匹配的 PDF 引用，按当前文字计算显示位置，避免继续显示其他设备保存的错误宽度；原始阅读笔记不被改写。已检查 Obsidian Desktop 1.13.7 mobile emulation 和 WebKit 26.6；iOS 真机复测仍需完成。
+0.2.2 让手机 Markdown 工具栏贴着原生导航栏下边缘，并一起收起和恢复；不再留下固定空白或造成滚动跳动，同时包含 0.2.1 的 PDF 修复。对于同页唯一匹配的 PDF 引用，按当前文字计算显示位置，避免继续显示其他设备保存的错误宽度；原始阅读笔记不被改写。已检查 Obsidian Desktop 1.13.7 mobile emulation 和 WebKit 26.6；iOS 真机复测仍需完成。
 
 ## 已实现功能
 
@@ -46,9 +46,9 @@ Windows、Markdown 编辑视图标注、OCR、专用 Copy link／Copy quote、PD
 
 ## 安装 public beta
 
-从 [0.2.1 发布页](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.1) 下载 `marglow-0.2.1.zip`，解压后将 `marglow/` 中的三个文件放到 `<vault>/.obsidian/plugins/marglow/` 中，然后重载 Obsidian 并在第三方插件设置中启用 **Marglow**。也可以分别下载 `main.js`、`manifest.json` 和 `styles.css`。
+从 [0.2.2 发布页](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.2) 下载 `marglow-0.2.2.zip`，解压后将 `marglow/` 中的三个文件放到 `<vault>/.obsidian/plugins/marglow/` 中，然后重载 Obsidian 并在第三方插件设置中启用 **Marglow**。也可以分别下载 `main.js`、`manifest.json` 和 `styles.css`。
 
-使用 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 时，添加仓库 `Wp-Zhang/obsidian-marglow`，允许预发布版本，或明确选择版本 `0.2.1`。首次体验请使用测试 Vault。iOS 使用同样的文件和现有同步方式；真机验收尚未完成。
+使用 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 时，添加仓库 `Wp-Zhang/obsidian-marglow`，允许预发布版本，或明确选择版本 `0.2.2`。首次体验请使用测试 Vault。iOS 使用同样的文件和现有同步方式；真机验收尚未完成。
 
 发现问题请在 [GitHub Issues](https://github.com/Wp-Zhang/obsidian-marglow/issues/new/choose) 提供版本、设备、复现步骤和去除隐私信息的示例。
 

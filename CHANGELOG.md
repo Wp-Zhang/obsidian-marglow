@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2 — Public beta 3 (2026-09-30)
+
+- Attach phone Markdown annotation tools directly below native floating navigation.
+- Follow the host's navigation visibility and animation timing instead of keeping a separate permanently visible toolbar.
+- Reserve initial tool spacing inside the document scroller, eliminating the fixed blank area when navigation hides and preserving scroll position.
+- Measure toolbar height for layout and clean up its CSS variable when unloading.
+- Check real scroll-triggered hide/restore in Obsidian 1.13.7 mobile emulation, plus WebKit visibility, touch and scroll-stability checks. Physical iOS retesting remains pending.
+
 ## 0.2.1 — Public beta 2 (2026-09-30)
 
 - Replace mobile Reading notes text with the Marglow icon and annotation-count badge. Keep all toolbar actions on one row with 44px touch targets.

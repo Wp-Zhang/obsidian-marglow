@@ -16,7 +16,7 @@ The scripts verify the isolated Vault identity and that its only installed plugi
 
 For mobile changes, use both layers before requesting a physical-device retest:
 
-1. `npm run smoke:mobile` creates an isolated Vault and enables native `app.emulateMobile(true)`. To use an installed updated Obsidian runtime, set `OBSIDIAN_ASAR` to its cached versioned ASAR file; it is copied into the test profile, never modified. Record the app version printed by the script. Version 1.13.7 was checked for this fix.
+1. `npm run smoke:mobile` creates an isolated Vault and enables native `app.emulateMobile(true)`. To use an installed updated Obsidian runtime, set `OBSIDIAN_ASAR` to its cached versioned ASAR file; it is copied into the test profile, never modified. Record the app version printed by the script. Version 1.13.7 was checked for this fix, including actual downward/upward scroll-triggered native navigation hide/restore, toolbar adjacency and unchanged reading viewport/scroll offsets.
 2. Install the WebKit test engine with `npx playwright install webkit`, then run `npm run smoke:webkit`. This checks navigation insets, touch event delivery, PDF partial-selection capture, cross-scale rendering and page clipping at a phone viewport. Engine 26.6 was checked for this fix.
 3. The WebKit script saves a standalone `safari-fixture.html` under its ignored output directory for a native Safari check. The attempted native Safari launch in this session timed out; it is not recorded as a pass.
 4. Physical iOS still needs retesting, especially native selection handles, pinch gestures, floating navigation, keyboard changes and saved annotations reopened on another device. Desktop emulation and Playwright WebKit are not physical iOS acceptance.

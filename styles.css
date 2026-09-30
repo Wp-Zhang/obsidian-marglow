@@ -78,10 +78,25 @@
 .marglow-reading-container { display: flex; flex-direction: column; padding: 0; }
 .marglow-reading-container > .marglow-file-tools { position: relative; top: 0; flex: 0 0 auto; margin: 0; }
 .marglow-reading-container > .markdown-preview-view { flex: 1 1 auto; min-height: 0; height: auto; }
-/* Phone Reading view reserves floating navigation/status space on its scroller.
-   Transfer that inset to the whole pane so the toolbar is below native controls. */
-.is-phone .marglow-reading-container { padding-top: var(--view-top-spacing-markdown, 0px); box-sizing: border-box; }
-.is-phone .mod-root .workspace-leaf-content .view-content .marglow-reading-container > .markdown-preview-view { padding-top: 0; }
+/* Floating navigation and our tools share the host's visibility state. Keep the
+   reserved space inside the scroller, so it scrolls away without a fixed gap. */
+.is-phone .marglow-reading-container { position: relative; box-sizing: border-box; }
+.is-phone:is(.is-floating-nav, .auto-full-screen) .marglow-reading-container > .marglow-file-tools {
+  position: absolute; left: 0; right: 0;
+  top: calc(var(--view-header-top-offset, var(--safe-area-inset-top, 0px)) + var(--view-header-height, 0px));
+  transition: opacity 0.2s ease-in-out, transform 0.3s ease-in-out, visibility 0s;
+}
+.is-phone:is(.is-floating-nav, .auto-full-screen) .mod-root .workspace-leaf-content .view-content .marglow-reading-container > .markdown-preview-view {
+  padding-top: calc(var(--view-top-spacing-markdown, 0px) + var(--marglow-tools-height, 57px));
+}
+.is-phone.is-hidden-nav .marglow-reading-container > .marglow-file-tools {
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transform: translateY(calc(-1 * (var(--view-header-top-offset, var(--safe-area-inset-top, 0px)) + var(--view-header-height, 0px))));
+  transition-delay: 0s, 0s, 0.3s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-phone .marglow-reading-container > .marglow-file-tools { transition: none; }
+}
 .marglow-ui button.marglow-comment-text { display: block; width: 100%; padding: 4px 0; height: auto; text-align: left; font: inherit; color: var(--text-normal); background: transparent; box-shadow: none; border: 0; border-radius: 3px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .marglow-ui button.marglow-comment-text:hover { background: var(--background-modifier-hover); }
 .marglow-comment-time { display: block; margin-top: 6px; color: var(--text-muted); font-size: var(--font-ui-smaller); }

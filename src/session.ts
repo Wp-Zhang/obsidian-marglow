@@ -160,8 +160,15 @@ export class AnnotationSession {
       if (external) this.scheduleRender();
     });
     this.observer.observe(root, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["style", "data-loaded"] });
-    this.resize = new ResizeObserver(() => this.scheduleRender());
+    this.resize = new ResizeObserver(() => {
+      if (this.mobile && this.readingContainer && this.tools.offsetHeight) {
+        const height = `${this.tools.offsetHeight}px`;
+        if (this.readingContainer.style.getPropertyValue("--marglow-tools-height") !== height) this.readingContainer.style.setProperty("--marglow-tools-height", height);
+      }
+      this.scheduleRender();
+    });
     this.resize.observe(root);
+    this.resize.observe(this.tools);
     void this.refresh();
   }
 
@@ -437,6 +444,7 @@ export class AnnotationSession {
     for (const overlay of this.overlays.values()) overlay.remove();
     this.overlays.clear();
     this.readingContainer?.classList.remove("marglow-reading-container");
+    this.readingContainer?.style.removeProperty("--marglow-tools-height");
     this.tools.remove();
     this.sidebar.dispose();
     this.adapter.root.classList.remove("marglow-source");

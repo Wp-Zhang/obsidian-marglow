@@ -589,9 +589,10 @@ try {
   // Setting phone classes on the desktop workspace hides native desktop leaves;
   // this checks layout and hit testing, without claiming device acceptance.
   await page.evaluate(() => {
-    const fixture = document.createElement('div'); fixture.className = 'is-phone marglow-phone-fixture';
+    const fixture = document.createElement('div'); fixture.className = 'is-phone is-floating-nav marglow-phone-fixture';
     Object.assign(fixture.style, { position: 'fixed', inset: '0', width: '402px', height: '800px', zIndex: '9999', background: 'white' });
     fixture.style.setProperty('--view-top-spacing-markdown', '112px');
+    fixture.style.setProperty('--safe-area-inset-top', '48px');fixture.style.setProperty('--view-header-height', '48px');
     fixture.innerHTML = '<div class="mod-root"><div class="workspace-leaf-content"><div class="view-content"><div class="markdown-reading-view marglow-reading-container"><div class="markdown-preview-view">Reading content</div></div></div></div></div>';
     const pane = fixture.querySelector('.marglow-reading-container');
     const toolbar = document.querySelector('.marglow-file-tools').cloneNode(true);
@@ -606,12 +607,12 @@ try {
     return { inset: toolbar.getBoundingClientRect().top - pane.getBoundingClientRect().top, padding: getComputedStyle(root).paddingTop,
       reachable: button.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)) };
   });
-  assert.ok(Math.abs(phoneLayout.inset - 112) < 1, JSON.stringify(phoneLayout));
-  assert.equal(phoneLayout.padding, '0px'); assert.equal(phoneLayout.reachable, true);
+  assert.ok(Math.abs(phoneLayout.inset - 96) < 1, JSON.stringify(phoneLayout));
+  assert.equal(phoneLayout.padding, '169px'); assert.equal(phoneLayout.reachable, true);
   const phoneTools = page.locator('.marglow-phone-fixture').getByRole('toolbar', { name: 'Page annotation tools' });
   await phoneTools.getByRole('button', { name: 'Choose green', exact: true }).click();
   assert.equal(await phoneTools.getByRole('button', { name: 'Choose green', exact: true }).getAttribute('aria-pressed'), 'true');
-  await page.evaluate(() => document.querySelector('.marglow-phone-fixture').style.setProperty('--view-top-spacing-markdown', '64px'));
+  await page.evaluate(() => document.querySelector('.marglow-phone-fixture').style.setProperty('--safe-area-inset-top', '16px'));
   await page.waitForFunction(() => {
     const toolbar = document.querySelector('.marglow-phone-fixture .marglow-file-tools');return Math.abs(toolbar.getBoundingClientRect().top - toolbar.parentElement.getBoundingClientRect().top - 64) < 1;
   });

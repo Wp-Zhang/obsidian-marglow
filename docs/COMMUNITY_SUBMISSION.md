@@ -1,6 +1,6 @@
 # Community submission preparation
 
-Prepared on 2026-09-30; updated for **0.2.1 — Public beta 2**. This document does not assert acceptance into the community directory.
+Prepared on 2026-09-30; updated for **0.2.2 — Public beta 3**. This document does not assert acceptance into the community directory.
 
 ## Submission details
 
@@ -11,11 +11,11 @@ Prepared on 2026-09-30; updated for **0.2.1 — Public beta 2**. This document d
 | Name | Marglow |
 | Author | Weipeng Zhang |
 | Description | Highlight and comment on Markdown and PDF, with editable local Markdown reading notes. |
-| Release tag / manifest version | `0.2.1` |
+| Release tag / manifest version | `0.2.2` |
 | Minimum app version | `1.8.10` |
 | Desktop only | false; physical iOS acceptance remains pending |
 | License | MIT |
-| Release | https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.1 |
+| Release | https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.2 |
 
 The current official process is the [Obsidian Community directory submission flow](https://docs.obsidian.md/Plugins/Releasing/Submit%20your%20plugin). It requires an Obsidian account, linked GitHub account, repository ownership verification, and the author's agreement to developer policies and continued maintenance. No community submission or policy agreement has been made by this preparation task.
 
@@ -62,4 +62,4 @@ No legacy `obsidian-releases` pull request is prepared: the current official sub
 
 ## 0.2.1 mobile follow-up
 
-A phone toolbar inset issue and cross-device PDF geometry issue reported by the user were addressed. Desktop 1.13.7 native mobile emulation and Playwright WebKit 26.6 checks passed. A copied problematic PDF and reading note were tested without changing their bytes. Physical iOS retesting remains pending. The latest public beta is 0.2.1; physical iOS retesting remains pending.
+A phone toolbar inset issue and cross-device PDF geometry issue reported by the user were addressed. Desktop 1.13.7 native mobile emulation and Playwright WebKit 26.6 checks passed. A copied problematic PDF and reading note were tested without changing their bytes. Physical iOS retesting remains pending. The latest public beta is 0.2.2; physical iOS retesting remains pending.

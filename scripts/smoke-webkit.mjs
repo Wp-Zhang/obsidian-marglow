@@ -14,23 +14,37 @@ try {
   const page = await context.newPage();
   const errors = []; page.on("pageerror", error => errors.push(error.message));
   await page.setContent(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><style>
-    body { margin:0; --view-top-spacing-markdown:125px; --background-primary:#fff; --text-normal:#222; --text-muted:#666; --background-modifier-border:#ddd; --font-ui-small:14px; }
-    .header { position:fixed; top:59px; height:50px; width:100%; background:white; z-index:10; }
-    .markdown-reading-view { height:600px; } .markdown-preview-view { padding-top:var(--view-top-spacing-markdown); }
+    body { margin:0; --view-top-spacing-markdown:125px; --safe-area-inset-top:59px; --view-header-height:50px; --background-primary:#fff; --text-normal:#222; --text-muted:#666; --background-modifier-border:#ddd; --font-ui-small:14px; }
+    .header { position:fixed; top:var(--safe-area-inset-top); height:var(--view-header-height); width:100%; background:white; z-index:10; }
+    .markdown-reading-view { height:600px; } .markdown-preview-view { padding-top:var(--view-top-spacing-markdown); overflow:auto; box-sizing:border-box; }
     .page { position:relative; width:400px; height:600px; border:1px solid #ddd; margin-top:20px; transform-origin:top left; }
     .text { position:absolute; left:40px; top:50px; font:20px serif; white-space:nowrap; }
     ${css}
-    </style><body class="is-phone"><div class="header">Native navigation reserved area</div><div class="mod-root"><div class="workspace-leaf-content"><div class="view-content"><div class="markdown-reading-view marglow-reading-container"><div class="marglow-ui marglow-file-tools marglow-mobile"><button type="button">Highlight</button><button type="button">Reading notes</button></div><div class="markdown-preview-view">Reading content</div></div></div></div></div><div class="page" data-page-number="1"><div class="canvasWrapper" style="position:absolute;inset:0"></div><div class="textLayer" style="position:absolute;inset:0"><span class="text">A passage worth remembering.</span></div><div class="marglow-overlay"><div class="marglow-highlight marglow-yellow marglow-underline"></div></div></div>`);
+    </style><body class="is-phone is-floating-nav"><div class="header">Native navigation reserved area</div><div class="mod-root"><div class="workspace-leaf-content"><div class="view-content"><div class="markdown-reading-view marglow-reading-container"><div class="marglow-ui marglow-file-tools marglow-mobile"><button type="button">Highlight</button><button type="button">Reading notes</button></div><div class="markdown-preview-view">Reading content</div></div></div></div></div><div class="page" data-page-number="1"><div class="canvasWrapper" style="position:absolute;inset:0"></div><div class="textLayer" style="position:absolute;inset:0"><span class="text">A passage worth remembering.</span></div><div class="marglow-overlay"><div class="marglow-highlight marglow-yellow marglow-underline"></div></div></div>`);
   await page.addScriptTag({ content: bundle.outputFiles[0].text });
   const toolbar = page.locator('.marglow-file-tools');
   const top = await toolbar.evaluate(el => el.getBoundingClientRect().top);
-  assert.ok(Math.abs(top - 125) < 1);
-  assert.equal(await page.locator('.markdown-preview-view').evaluate(el => getComputedStyle(el).paddingTop), '0px');
+  assert.ok(Math.abs(top - 109) < 1);
+  assert.equal(await page.locator('.markdown-preview-view').evaluate(el => getComputedStyle(el).paddingTop), '182px');
   await page.evaluate(() => document.querySelector('button').addEventListener('click', event => event.currentTarget.dataset.tapped = 'true'));
   await page.getByRole('button', { name: 'Highlight', exact: true }).tap();
   assert.equal(await page.getByRole('button', { name: 'Highlight', exact: true }).getAttribute('data-tapped'), 'true');
-  await page.evaluate(() => document.body.style.setProperty('--view-top-spacing-markdown', '80px'));
+  await page.evaluate(() => document.body.style.setProperty('--safe-area-inset-top', '30px'));
   assert.ok(Math.abs(await toolbar.evaluate(el => el.getBoundingClientRect().top) - 80) < 1);
+  const beforeHide=await page.evaluate(()=>{
+    const root=document.querySelector('.markdown-preview-view');
+    for(let i=0;i<50;i++){const p=document.createElement('p');p.textContent='Reading paragraph '+i;root.append(p);}
+    root.scrollTop=300;return {top:root.getBoundingClientRect().top,scroll:root.scrollTop};
+  });
+  await page.evaluate(()=>document.body.classList.add('is-hidden-nav'));
+  await toolbar.waitFor({state:'hidden'});
+  assert.equal(await toolbar.evaluate(el=>getComputedStyle(el).visibility),'hidden');
+  assert.equal(await toolbar.evaluate(el=>getComputedStyle(el).pointerEvents),'none');
+  assert.deepEqual(await page.evaluate(()=>{const root=document.querySelector('.markdown-preview-view');return {top:root.getBoundingClientRect().top,scroll:root.scrollTop};}),beforeHide);
+  await page.evaluate(()=>document.body.classList.remove('is-hidden-nav'));
+  await toolbar.waitFor({state:'visible'});
+  await page.getByRole('button',{name:'Highlight',exact:true}).tap();
+
   for (const scale of [0.7, 1, 1.7, 2.5]) {
     const delta = await page.evaluate(scale => {
       const host = document.querySelector('.page'); host.style.transform = `scale(${scale})`;
@@ -79,6 +93,6 @@ try {
   </script>`;
   await writeFile(`${output}/safari-fixture.html`, (await page.content()).replace('</body>',safariCheck+'</body>'));
   await page.screenshot({ path: `${output}/webkit-layout.png`, fullPage: true });
-  await writeFile(`${output}/report.json`, JSON.stringify({ engine: 'Playwright WebKit', version: browser.version(), mobileViewport: '402x874', checks: ['host-safe-inset toolbar placement', 'touch action delivery', 'dynamic header inset', 'page geometry at four CSS scales', 'page-bound clipping', 'partial PDF selection capture and cross-scale saved-anchor display'], physicalIOS: false }, null, 2));
+  await writeFile(`${output}/report.json`, JSON.stringify({ engine: 'Playwright WebKit', version: browser.version(), mobileViewport: '402x874', checks: ['host-safe-inset toolbar placement', 'touch action delivery', 'dynamic header inset', 'joint hide/restore without reserved-space or scroll jumps', 'page geometry at four CSS scales', 'page-bound clipping', 'partial PDF selection capture and cross-scale saved-anchor display'], physicalIOS: false }, null, 2));
   console.log(`PASS WebKit mobile layout, touch, and scaled/clipped page geometry. ${output}`);
 } finally { await browser.close(); }
