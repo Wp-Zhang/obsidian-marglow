@@ -5,7 +5,7 @@ Use a dedicated Vault with synthetic Markdown and PDF material. Never run these 
 ## Current verification
 
 - Automated checks cover Markdown round trips, direct edits, deletion, local-update preservation, stale-write rejection, malformed files, duplicate IDs, source association, text anchoring, PDF page transforms, cross-page selection, and composer persistence failures.
-- Mac smoke checks use actual Obsidian 1.8.10 with a private test profile. The 15 checks exercise visible round color swatches in light/dark themes, persistent page tools, Markdown/PDF persistence, source updates, zoom/rotation geometry, and plugin reloads.
+- Mac smoke checks use actual Obsidian 1.8.10 with a private test profile. The 17 checks exercise visible round color swatches in light/dark themes, persistent page tools, active/hover distinction, linked comment sidebars, responsive layouts, Markdown/PDF persistence, source updates, zoom/rotation geometry, and plugin reloads.
 - iOS physical-device selection, native menus, keyboard placement, and reopening remain unverified until the checklist below is run on a device. A desktop viewport or DOM test is not an iOS acceptance test.
 
 Run `npm run check`, `npm run package`, and, on Mac, `npm run smoke:mac`. The smoke script creates isolated fixtures and checks source-byte preservation before it exits. Inspect its screenshots in the printed local output directory.
@@ -13,6 +13,8 @@ Run `npm run check`, `npm run package`, and, on Mac, `npm run smoke:mac`. The sm
 ## Mac and iOS device checks
 
 - [ ] Confirm round, visible color swatches in both themes. Choose a color before selecting text, toggle Highlight mode, and start a comment from the page toolbar before selecting text.
+- [ ] Click a highlight: its outline and corresponding comment card distinguish it from others. Hover the text and card in both directions, navigate from the card, edit, and verify stable IDs.
+- [ ] Check the Comments sidebar in wide/narrow panes and on iOS; it stays closable, preserves failed drafts, reflects note edits/deletions, and retains unlocated entries.
 - [ ] Select Markdown text in Reading view; the action toolbar appears without changing scroll position.
 - [ ] Save each highlight color and a multiline comment; dismissing the composer saves, while cancel discards the pending change.
 - [ ] On Mac, check `Cmd + Enter` and `Esc`. On iOS, check touch save/cancel controls and native selection handles.
@@ -41,6 +43,7 @@ On two test devices, use the chosen sync tool to change different annotations, t
 
 ## Known boundaries
 
+- Sidebar navigation to a Markdown passage that is not currently rendered requires scrolling to render it first; unreliable targets are not guessed.
 - Markdown annotations operate in Reading view. Editor modes retain data but do not show the annotation layer.
 - Embedded document selections and formulas are rejected rather than silently assigned to the wrong source.
 - PDF fingerprints are content hashes. A replaced PDF marks old anchors unlocated until manually reassociated; it does not automatically rematch changed PDFs.

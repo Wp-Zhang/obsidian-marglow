@@ -1,3 +1,4 @@
+import { AnnotationSidebar } from "./sidebar";
 import type { Entry } from "./format";
 import { AnnotationStore } from "./store";
 import { AnnotationUI, colorButton } from "./ui";
@@ -35,11 +36,18 @@ export class AnnotationSession {
   private pageComment: HTMLButtonElement;
   private pageBusy = false;
   private pointerActive = false;
+  private sidebar: AnnotationSidebar;
+  private sidebarButton: HTMLButtonElement;
+  private pane: HTMLElement;
+  private activeId: string | null = null;
+  private hoveredId: string | null = null;
+  private preview: Annotation | null = null;
+  private unlocated = new Set<string>();
 
   constructor(readonly source: Source, readonly adapter: DocumentAdapter, private store: AnnotationStore, mobile: boolean, private callbacks: SessionCallbacks) {
     const root = adapter.root;
     const document = root.ownerDocument;
-    this.ui = new AnnotationUI(document, mobile, callbacks.report, callbacks.onUiClosed);
+    this.ui = new AnnotationUI(document, mobile, callbacks.report, () => { this.scheduleRender(); callbacks.onUiClosed(); }, () => this.render());
     this.overlay = document.createElement("div");
     this.overlay.className = "marglow-overlay";
     this.overlay.setAttribute("aria-hidden", "true");
@@ -68,6 +76,19 @@ export class AnnotationSession {
     this.pageComment.textContent = "Comment";
     this.pageComment.addEventListener("click", () => this.chooseTool("comment"));
     this.tools.append(this.pageHighlight, this.pageComment);
+    this.pane = root.parentElement!;
+    this.pane.classList.add("marglow-pane");
+    this.sidebar = new AnnotationSidebar(document, () => this.toggleSidebar(false), (annotation, edit) => { void this.selectFromSidebar(annotation, edit); }, id => this.emphasize(this.activeId, id));
+    this.ui.navigationContainer = this.sidebar.element;
+    this.sidebar.element.classList.toggle("marglow-mobile", mobile);
+    this.sidebar.element.hidden = mobile || this.pane.clientWidth < 850;
+    this.pane.append(this.sidebar.element);
+    this.sidebarButton = document.createElement("button");
+    this.sidebarButton.type = "button";
+    this.sidebarButton.textContent = "Comments";
+    this.sidebarButton.addEventListener("click", () => this.toggleSidebar(!!this.sidebar.element.hidden));
+    this.tools.append(this.sidebarButton);
+    this.updateSidebarLayout();
     this.notesButton = document.createElement("button");
     this.notesButton.textContent = "Reading notes";
     this.notesButton.addEventListener("click", () => { void callbacks.openNote(source).catch(error => callbacks.report(String(error))); });
@@ -91,10 +112,17 @@ export class AnnotationSession {
       if (!document.getSelection()?.isCollapsed) { this.capture(); return; }
       if (this.pointerStart && Math.hypot(event.clientX - this.pointerStart.x, event.clientY - this.pointerStart.y) > 8) return;
       if (this.ui.hasDraft || this.ui.isBusy || (event.target as Element).closest("a, button, input")) return;
-      const hits = this.located.filter(located => located.rects.some(rect => event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom));
+      const hits = this.hits(event.clientX, event.clientY);
+      if (!hits.length) this.emphasize(null, null);
       if (hits.length === 1) this.open(hits[0]!.annotation, new DOMRect(event.clientX, event.clientY, 1, 1));
       else if (hits.length > 1) this.ui.choose(new DOMRect(event.clientX, event.clientY, 1, 1), hits.map(hit => hit.annotation), annotation => this.open(annotation, new DOMRect(event.clientX, event.clientY, 1, 1)));
     }, { signal });
+    root.addEventListener("pointermove", event => {
+      if (this.pointerActive || (event.target as Element).closest(".marglow-ui")) return;
+      const hits = this.hits(event.clientX, event.clientY);
+      this.emphasize(this.activeId, hits.find(hit => hit.annotation.id === this.activeId)?.annotation.id ?? hits[0]?.annotation.id ?? null);
+    }, { signal });
+    root.addEventListener("pointerleave", () => this.emphasize(this.activeId, null), { signal });
     root.addEventListener("scroll", () => this.scheduleRender(), { capture: true, signal });
     document.defaultView?.addEventListener("resize", () => this.scheduleRender(), { signal });
     this.observer = new MutationObserver(records => {
@@ -126,6 +154,7 @@ export class AnnotationSession {
       const existing = this.entries.find(entry => this.adapter.matches(entry.annotation, captured));
       if (this.toolMode) { void this.pageAction(captured, this.toolMode); return; }
       this.ui.show(captured, this.actions(captured, existing), existing?.annotation);
+      this.render();
     } catch (error) {
       this.callbacks.report(error instanceof Error ? error.message : String(error));
     }
@@ -133,9 +162,14 @@ export class AnnotationSession {
 
   private actions(selection: CapturedSelection, entry?: Entry) {
     const annotation = entry?.annotation ?? createAnnotation(selection, this.preferredColor);
+    this.preview = entry ? null : annotation;
+    this.emphasize(annotation.id, this.hoveredId, true);
+    this.render();
     const save = async (updated: Annotation) => {
       if (this.disposed) throw new Error("The source view closed. Reopen it before saving.");
       await this.store.save(this.source, { ...updated, updatedAt: new Date().toISOString() }, entry?.raw);
+      this.preview = null;
+      this.activeId = updated.id;
       this.adapter.root.ownerDocument.getSelection()?.removeAllRanges();
       await this.refresh();
     };
@@ -184,6 +218,7 @@ export class AnnotationSession {
       this.toolMode = null;
       this.updatePageTools();
       this.ui.showComment(selection, actions, entry?.annotation);
+      this.render();
       return;
     }
     this.pageBusy = true;
@@ -216,6 +251,7 @@ export class AnnotationSession {
       const message = error instanceof Error ? error.message : String(error);
       if (message !== this.error) this.callbacks.report(message);
       this.error = message;
+      this.sidebar.render(this.entries.map(entry => entry.annotation), this.unlocated, message);
       this.tools.dataset.error = "true";
       this.notesButton.textContent = "Reading note needs repair";
       this.notesButton.title = message;
@@ -230,20 +266,23 @@ export class AnnotationSession {
   private render(): void {
     if (this.disposed || this.suspended || this.error) return;
     const root = this.adapter.root;
+    this.updateSidebarLayout();
     this.adapter.refreshLayout();
     const box = root.getBoundingClientRect();
     const nodes: HTMLElement[] = [];
     const located: LocatedAnnotation[] = [];
-    let unlocated = 0;
-    for (const entry of this.entries) {
-      const rects = this.adapter.locate(entry.annotation);
-      if (rects === null) { unlocated++; continue; }
-      located.push({ annotation: entry.annotation, rects });
+    this.unlocated = new Set();
+    const annotations = this.entries.map(entry => entry.annotation);
+    if (this.preview && this.ui.hasDraft) annotations.push(this.preview);
+    for (const annotation of annotations) {
+      const rects = this.adapter.locate(annotation);
+      if (rects === null) { this.unlocated.add(annotation.id); continue; }
+      located.push({ annotation, rects });
       for (const rect of rects) {
         const element = root.ownerDocument.createElement("div");
-        element.className = `marglow-highlight marglow-${entry.annotation.color}`;
-        element.dataset.annotationId = entry.annotation.id;
-        element.dataset.comment = String(!!entry.annotation.comment.trim());
+        element.className = `marglow-highlight marglow-${annotation.color}`;
+        element.dataset.annotationId = annotation.id;
+        element.dataset.comment = String(!!annotation.comment.trim());
         element.style.left = `${rect.left - box.left + root.scrollLeft}px`;
         element.style.top = `${rect.top - box.top + root.scrollTop}px`;
         element.style.width = `${rect.width}px`;
@@ -255,9 +294,61 @@ export class AnnotationSession {
     this.overlay.style.height = `${root.scrollHeight}px`;
     this.overlay.replaceChildren(...nodes);
     this.located = located;
+    if (this.activeId && this.activeId !== this.preview?.id && !annotations.some(annotation => annotation.id === this.activeId)) this.activeId = null;
+    this.sidebar.render(this.entries.map(entry => entry.annotation).sort((a, b) => {
+      const position = (annotation: Annotation) => annotation.anchor.kind === "markdown" ? annotation.anchor.textStart : annotation.anchor.segments[0]!.page;
+      return Number(this.unlocated.has(a.id)) - Number(this.unlocated.has(b.id)) || position(a) - position(b);
+    }), this.unlocated, "");
+    this.emphasize(this.activeId, this.hoveredId);
     this.tools.dataset.error = "false";
-    this.notesButton.textContent = `Reading notes · ${this.entries.length}${unlocated ? ` · ${unlocated} unlocated` : ""}`;
-    this.notesButton.title = unlocated ? "Open reading notes, then run Reassociate an annotation." : "Open editable Markdown reading notes";
+    this.notesButton.textContent = `Reading notes · ${this.entries.length}${this.unlocated.size ? ` · ${this.unlocated.size} unlocated` : ""}`;
+    this.notesButton.title = this.unlocated.size ? "Open reading notes, then run Reassociate an annotation." : "Open editable Markdown reading notes";
+  }
+
+  private hits(x: number, y: number): LocatedAnnotation[] {
+    return this.located.filter(item => item.rects.some(rect => x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom));
+  }
+
+  private emphasize(active: string | null, hovered: string | null, reveal = false): void {
+    this.activeId = active; this.hoveredId = hovered;
+    for (const node of this.overlay.children) {
+      const element = node as HTMLElement;
+      element.classList.toggle("is-active", element.dataset.annotationId === active);
+      element.classList.toggle("is-hovered", element.dataset.annotationId === hovered);
+    }
+    this.sidebar.emphasize(active, hovered, reveal);
+  }
+
+  private toggleSidebar(open: boolean): void {
+    this.sidebar.element.hidden = !open;
+    this.updateSidebarLayout();
+    this.scheduleRender();
+    this.sidebar.emphasize(this.activeId, this.hoveredId, open);
+  }
+
+  private updateSidebarLayout(): void {
+    const open = !this.sidebar.element.hidden;
+    this.pane.classList.toggle("marglow-sidebar-open", open);
+    this.pane.classList.toggle("marglow-sidebar-docked", open && this.pane.clientWidth >= 850);
+    this.sidebarButton.setAttribute("aria-expanded", String(open));
+    this.sidebar.element.style.top = `${this.adapter.root.offsetTop}px`;
+  }
+
+  private async selectFromSidebar(annotation: Annotation, edit: boolean): Promise<void> {
+    if (!await this.ui.finish() || this.disposed || this.suspended || this.error) return;
+    const entry = this.entries.find(entry => entry.annotation.id === annotation.id);
+    if (!entry) return;
+    this.preview = null;
+    this.adapter.root.ownerDocument.getSelection()?.removeAllRanges();
+    this.emphasize(annotation.id, this.hoveredId, true);
+    const navigated = this.adapter.scrollTo?.(entry.annotation) ?? false;
+    this.render();
+    const rect = this.located.find(item => item.annotation.id === annotation.id)?.rects[0];
+    if (!navigated) this.callbacks.report(this.unlocated.has(annotation.id) ? "This annotation is unlocated. Reassociate it from Reading notes." : "This passage is not rendered yet. Scroll to it in the document, then try again.");
+    if (edit) {
+      const selection = { quote: entry.annotation.quote, anchor: entry.annotation.anchor, rect: rect ?? this.sidebar.element.getBoundingClientRect() };
+      this.ui.showComment(selection, this.actions(selection, entry), entry.annotation);
+    }
   }
 
   dispose(): void {
@@ -271,6 +362,8 @@ export class AnnotationSession {
     this.ui.dispose();
     this.overlay.remove();
     this.tools.remove();
+    this.sidebar.dispose();
+    this.pane.classList.remove("marglow-pane", "marglow-sidebar-open", "marglow-sidebar-docked");
     this.adapter.root.classList.remove("marglow-source");
     this.adapter.dispose();
   }

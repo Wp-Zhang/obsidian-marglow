@@ -57,6 +57,7 @@ export interface DocumentAdapter {
   locate(annotation: Annotation): DOMRect[] | null;
   matches(annotation: Annotation, selection: CapturedSelection): boolean;
   refreshLayout(): void;
+  scrollTo?(annotation: Annotation): boolean;
   dispose(): void;
 }
 

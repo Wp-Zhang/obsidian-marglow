@@ -119,6 +119,20 @@ export class PdfAdapter implements DocumentAdapter {
     return rects;
   }
 
+  scrollTo(annotation: Annotation): boolean {
+    if (annotation.anchor.kind !== "pdf" || this.locate(annotation) === null) return false;
+    const page = viewerFromView(this.view)?.getPageView(annotation.anchor.segments[0]!.page - 1);
+    if (!page?.div.isConnected) return false;
+    page.div.scrollIntoView({ block: "start" });
+    const rect = this.locate(annotation)?.[0];
+    if (rect) {
+      let scroller = page.div.parentElement;
+      while (scroller && scroller !== this.root && scroller.scrollHeight <= scroller.clientHeight) scroller = scroller.parentElement;
+      if (scroller) scroller.scrollTop += rect.top - scroller.getBoundingClientRect().top - 80;
+    }
+    return true;
+  }
+
   dispose(): void {}
 
   refreshLayout(): void {}

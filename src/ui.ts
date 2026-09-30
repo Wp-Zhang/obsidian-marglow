@@ -31,10 +31,11 @@ export class AnnotationUI {
   private busy = false;
   private rect: DOMRect | null = null;
   private abort = new AbortController();
+  navigationContainer: HTMLElement | null = null;
 
-  constructor(private document: Document, private mobile: boolean, private report: (message: string) => void, private onClose: () => void = () => {}) {
+  constructor(private document: Document, private mobile: boolean, private report: (message: string) => void, private onClose: () => void = () => {}, private onChange: () => void = () => {}) {
     document.addEventListener("pointerdown", event => {
-      if (this.element && !this.element.contains(event.target as Node)) void this.finish();
+      if (this.element && !this.element.contains(event.target as Node) && !(this.navigationContainer?.contains(event.target as Node) && (event.target as Element).closest(".marglow-comment-card"))) void this.finish();
     }, { capture: true, signal: this.abort.signal });
     document.addEventListener("keydown", event => {
       if (event.key === "Escape" && this.element && !this.busy) {
@@ -134,6 +135,7 @@ export class AnnotationUI {
     });
     this.position();
     input.focus({ preventScroll: true });
+    this.onChange();
   }
 
   private panel(kind: string): HTMLElement {

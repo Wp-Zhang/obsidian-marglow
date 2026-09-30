@@ -75,3 +75,19 @@ describe("comment composer lifecycle", () => {
     ui.dispose();
   });
 });
+
+it("lets sidebar navigation await a failed save without losing its draft", async () => {
+  const save = vi.fn().mockRejectedValue(new Error("Disk unavailable"));
+  const ui = new AnnotationUI(document, false, vi.fn());
+  const sidebar = document.createElement("aside");
+  sidebar.innerHTML = '<article class="marglow-comment-card"><button>Navigate</button></article>';
+  document.body.append(sidebar);
+  ui.navigationContainer = sidebar;
+  ui.showComment(selection, { highlight: async () => {}, comment: save });
+  document.querySelector("textarea")!.value = "Unsaved thought";
+  sidebar.querySelector("button")!.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+  expect(save).not.toHaveBeenCalled();
+  expect(await ui.finish()).toBe(false);
+  expect(document.querySelector("textarea")!.value).toBe("Unsaved thought");
+  ui.dispose();
+});

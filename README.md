@@ -8,12 +8,14 @@ The name combines **margin** and **glow**.
 
 ## Status
 
-**0.1.1 is an initial development build**, not a Community Plugins release. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
+**0.1.2 is an initial development build**, not a Community Plugins release. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
 
 A persistent page toolbar offers color selection, Highlight mode, Comment, and Reading notes. Choose a color before selecting text; activate Highlight to mark subsequent selections, or Comment to write on the next selection. Click the active tool again to turn it off. Floating selection tools remain available.
 
 ## Features
 
+- Selected annotations have a distinct solid outline; hovering uses a lighter dashed outline.
+- A per-document **Comments** sidebar with quotes, comments, bidirectional hover, click-to-jump, and comment editing. Wide panes dock the sidebar; narrow panes and mobile use a collapsible overlay.
 - Four highlight colors and a lightweight comment composer, directly beside a text selection.
 - Markdown **Reading view**, including selections across formatting and paragraphs.
 - Text-selectable PDFs, with multiple page segments under one annotation and highlights that follow zoom and rotation.
@@ -48,7 +50,10 @@ For iOS, place those same three files in the target Vault's plugin directory usi
 2. Select text, then pick a color or choose **Comment**. There is no need to open a reading note first.
 3. Write a comment and save explicitly or click/tap outside. Cancel discards the current unsaved edit; saving an empty existing comment keeps its highlight.
 4. Click highlighted text to change its color, edit/remove its comment, or delete the annotation. For overlaps, choose an entry from the short list.
-5. Use the **Reading notes** button or command to open the companion note. Edit comments between their markers, add your own notes outside annotation entries, or remove a complete entry.
+5. Open **Comments** to review annotations. Hover either side to identify its counterpart; click a card to navigate, or use Add/Edit comment. Unlocated entries remain listed.
+6. Use the **Reading notes** button or command to open the companion note. Edit comments between their markers, add your own notes outside annotation entries, or remove a complete entry.
+
+Navigation uses verified locations. If a long Markdown document has not rendered the target passage yet, scroll to it before retrying; Marglow reports this rather than guessing a location.
 
 Reading notes are created only when the first annotation is saved. To delete an entry manually, remove everything from its `oa:annotation:start` marker through the matching `oa:annotation:end` marker. Keep metadata and IDs intact when editing just a comment.
 

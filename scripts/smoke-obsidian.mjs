@@ -144,6 +144,39 @@ try {
   await page.waitForFunction(() => [...app.plugins.plugins.marglow.mounted.values()].some(mount => mount.session.entries.some(entry => entry.annotation.comment === "Direct edit.")));
   await page.waitForFunction(ids => ids.every(id => app.metadataCache.getFileCache(app.vault.getFileByPath("Smoke.md.annotations.md"))?.blocks?.[id]), ids);
   passed("Direct Markdown edit and native block IDs");
+  await pageTools.getByRole("button", { name: "Comments", exact: true }).click();
+  const sidebar = page.getByRole("complementary", { name: "Annotation comments" });
+  await sidebar.waitFor({ state: "visible" });
+  const card = sidebar.locator('.marglow-comment-card').filter({ hasText: "Direct edit." });
+  await card.getByRole("button", { name: /^Go to annotation:/ }).click();
+  await page.waitForFunction(id => [...document.querySelectorAll('.marglow-highlight.is-active')].every(node => node.dataset.annotationId === id) && document.querySelectorAll('.marglow-highlight.is-active').length > 0, ids[0]);
+  assert.equal(await card.getByRole("button", { name: /^Go to annotation:/ }).getAttribute("aria-current"), "true");
+  await card.hover();
+  await page.waitForFunction(id => !!document.querySelector(`.marglow-highlight.is-hovered[data-annotation-id="${id}"]`), ids[0]);
+  await page.mouse.move(10, 10);
+  const bodyRect = await page.locator(`.marglow-highlight[data-annotation-id="${ids[0]}"]`).first().boundingBox();
+  await page.mouse.move(bodyRect.x + bodyRect.width - 2, bodyRect.y + bodyRect.height / 2);
+  await page.waitForFunction(id => !!document.querySelector(`.marglow-comment-card.is-hovered[data-annotation-id="${id}"]`), ids[0]);
+  await card.getByRole("button", { name: "Edit comment", exact: true }).click();
+  await page.getByRole("textbox", { name: "Comment", exact: true }).fill("Sidebar edit.");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('.marglow-sidebar')?.textContent.includes("Sidebar edit."));
+  assert.ok((await noteText()).includes(`^${ids[0]}`));
+  await page.evaluate(async () => app.vault.process(app.vault.getFileByPath("Smoke.md.annotations.md"), text => text.replace("Sidebar edit.", "Direct edit.")));
+  await page.waitForFunction(() => document.querySelector('.marglow-sidebar')?.textContent.includes("Direct edit."));
+  await page.setViewportSize({ width: 1700, height: 1000 });
+  await page.waitForFunction(() => {
+    const source = document.querySelector('.marglow-source').getBoundingClientRect(), sidebar = document.querySelector('.marglow-sidebar').getBoundingClientRect();
+    return document.querySelector('.marglow-sidebar-docked') && source.right <= sidebar.left + 1;
+  });
+  await page.screenshot({ path: `${output}/comments-sidebar.png` });
+  await page.setViewportSize({ width: 650, height: 800 });
+  await page.waitForFunction(() => !document.querySelector('.marglow-sidebar-docked'));
+  assert.ok(await sidebar.getByRole("button", { name: "Close", exact: true }).isVisible());
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await sidebar.getByRole("button", { name: "Close", exact: true }).click();
+  passed("Markdown selected outline, bidirectional hover, sidebar navigation/edit and external update");
+
 
   markdown = "Inserted introduction.\n\n" + markdown;
   await page.evaluate(async text => app.vault.modify(app.vault.getFileByPath("Smoke.md"), text), markdown);
@@ -181,6 +214,7 @@ try {
   assert.equal(await pageTools.getByRole("button", { name: "Highlight", exact: true }).getAttribute("aria-pressed"), "false");
   await pageTools.getByRole("button", { name: "Comment", exact: true }).click();
   await selectStrong(7);
+  await page.waitForFunction(() => document.querySelectorAll(".marglow-highlight.is-active").length > 0);
   await page.getByRole("textbox", { name: "Comment", exact: true }).fill("Comment from the page toolbar.");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await page.waitForFunction(async () => (await app.vault.read(app.vault.getFileByPath("Renamed.md.annotations.md"))).includes("Comment from the page toolbar."));
@@ -207,6 +241,15 @@ try {
   };
   await page.waitForFunction(geometryMatches);
   passed("PDF cross-page annotation with correctly aligned geometry");
+  if (await sidebar.isHidden()) await pageTools.getByRole("button", { name: "Comments", exact: true }).click();
+  const pdfCard = sidebar.locator('.marglow-comment-card').first();
+  await pdfCard.getByRole("button", { name: /^Go to annotation:/ }).click();
+  assert.equal(await page.locator('.marglow-highlight.is-active').count(), 3);
+  await pdfCard.hover();
+  assert.equal(await page.locator('.marglow-highlight.is-hovered').count(), 3);
+  await page.screenshot({ path: `${output}/pdf-comments-sidebar.png` });
+  await sidebar.getByRole("button", { name: "Close", exact: true }).click();
+  passed("PDF sidebar navigation and cross-page selection/hover emphasis");
   await page.evaluate(() => { app.workspace.activeLeaf.view.viewer.child.pdfViewer.pdfViewer.currentScale = 1.25; });
   await page.waitForFunction(geometryMatches);
   await page.evaluate(() => { app.workspace.activeLeaf.view.viewer.child.pdfViewer.pdfViewer.pagesRotation = 90; });
@@ -217,6 +260,7 @@ try {
 
   await page.evaluate(async () => { await app.plugins.disablePlugin("marglow"); });
   assert.equal(await page.locator(".marglow-overlay").count(), 0);
+  assert.equal(await page.locator(".marglow-sidebar").count(), 0);
   await page.evaluate(async () => { await app.plugins.enablePlugin("marglow"); });
   await highlightCount(3);
   await page.waitForFunction(geometryMatches);

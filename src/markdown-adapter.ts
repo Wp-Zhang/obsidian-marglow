@@ -39,6 +39,15 @@ export class MarkdownAdapter implements DocumentAdapter {
     return range ? [...range.getClientRects()].filter(rect => rect.width > 0 && rect.height > 0) : [];
   }
 
+  scrollTo(annotation: Annotation): boolean {
+    this.refreshLayout();
+    const rect = this.locate(annotation)?.[0];
+    if (!rect) return false;
+    const box = this.root.getBoundingClientRect();
+    this.root.scrollTop += rect.top - box.top - Math.max(80, box.height / 3);
+    return true;
+  }
+
   dispose(): void {}
 
   refreshLayout(): void { this.visible = new TextIndex(this.root); }
