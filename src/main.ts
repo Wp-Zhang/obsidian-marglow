@@ -153,7 +153,6 @@ export default class MarglowPlugin extends Plugin {
             openComments: session => this.openComments(session).catch(error => this.report(String(error))),
             revealSource: () => this.app.workspace.revealLeaf(view.leaf),
             report: message => this.report(message),
-            openNote: source => this.openNote(source),
             cancelReassociation: () => { this.pending = null; },
             onUiClosed: () => this.schedule(),
             isReassociating: () => this.pending?.source.path === candidate.source.path,

@@ -8,7 +8,6 @@ import { COLORS, createAnnotation, type Color, type Annotation, type CapturedSel
 
 export interface SessionCallbacks {
   report(message: string): void;
-  openNote(source: Source): Promise<void>;
   isReassociating(): boolean;
   reassociate(selection: CapturedSelection): Promise<void>;
   cancelReassociation(): void;
@@ -46,7 +45,6 @@ export class AnnotationSession {
   private pageBusy = false;
   private pointerActive = false;
   private sidebar: AnnotationSidebar;
-  private sidebarButton: HTMLButtonElement;
   private activeId: string | null = null;
   private hoveredId: string | null = null;
   private preview: Annotation | null = null;
@@ -94,14 +92,10 @@ export class AnnotationSession {
     this.sidebar = new AnnotationSidebar(document, (annotation, edit) => { void this.selectFromSidebar(annotation, edit).catch(error => callbacks.report(error instanceof Error ? error.message : String(error))); }, id => this.emphasize(this.activeId, id), annotation => { void this.removeFromSidebar(annotation); });
     this.ui.navigationContainer = this.sidebar.element;
     this.sidebar.element.classList.toggle("marglow-mobile", mobile);
-    this.sidebarButton = document.createElement("button");
-    this.sidebarButton.type = "button";
-    this.sidebarButton.textContent = "Comments";
-    this.sidebarButton.addEventListener("click", () => callbacks.openComments(this));
-    this.tools.append(this.sidebarButton);
     this.notesButton = document.createElement("button");
+    this.notesButton.type = "button";
     this.notesButton.textContent = "Reading notes";
-    this.notesButton.addEventListener("click", () => { void callbacks.openNote(source).catch(error => callbacks.report(String(error))); });
+    this.notesButton.addEventListener("click", () => { void callbacks.openComments(this).catch(error => callbacks.report(String(error))); });
     this.tools.append(this.notesButton);
     this.updatePageTools();
     root.classList.add("marglow-source");
@@ -380,7 +374,7 @@ export class AnnotationSession {
     this.emphasize(this.activeId, this.hoveredId);
     this.tools.dataset.error = "false";
     this.notesButton.textContent = `Reading notes · ${this.entries.length}${this.unlocated.size ? ` · ${this.unlocated.size} unlocated` : ""}`;
-    this.notesButton.title = this.unlocated.size ? "Open reading notes, then run Reassociate an annotation." : "Open editable Markdown reading notes";
+    this.notesButton.title = this.unlocated.size ? "Show annotations in the sidebar; use Reassociate an annotation for unlocated entries." : "Show reading notes in the right sidebar";
   }
 
   private hits(x: number, y: number): LocatedAnnotation[] {

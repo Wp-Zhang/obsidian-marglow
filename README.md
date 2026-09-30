@@ -20,9 +20,9 @@ The name combines **margin** and **glow**.
 
 ## Status
 
-**0.1.12 is an initial development build**, not a Community Plugins release. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
+**0.1.13 is an initial development build**, not a Community Plugins release. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
 
-The Markdown page toolbar stays flush with the top of the reading pane. A persistent page toolbar offers color selection, icon tools for Highlight, Underline, and Comment, and Reading notes. Choose a color before selecting text; activate Highlight to mark subsequent selections, or Comment to write on the next selection. Click the active tool again to turn it off. Floating selection tools remain available.
+The Markdown page toolbar stays flush with the top of the reading pane. A persistent page toolbar offers color selection, icon tools for Highlight, Underline, and Comment, and Reading notes. Reading notes opens the native right sidebar without opening another document tab. Choose a color before selecting text; activate Highlight to mark subsequent selections, or Comment to write on the next selection. Click the active tool again to turn it off. Floating selection tools remain available.
 
 ## Features
 
@@ -64,8 +64,8 @@ For iOS, place those same three files in the target Vault's plugin directory usi
 2. Select text, then pick a color or choose **Comment**. There is no need to open a reading note first.
 3. Write a comment and save explicitly or click/tap outside. Cancel discards the current unsaved edit; saving an empty existing comment keeps its highlight.
 4. Click highlighted text to change its color, edit/remove its comment, or delete the annotation. For overlaps, choose an entry from the short list.
-5. Open **Comments** to review annotations. Hover either side to identify its counterpart; click its quote to navigate, or click the comment itself to edit directly inside its card. Inline editing supports Save/Cancel, outside-click autosave, and `Cmd + Enter`/`Esc`; failed or stale writes keep the draft. Each card shows its last update time; hover the time for creation and update details. Unlocated entries remain listed.
-6. Use the **Reading notes** button or command to open the companion note. Edit comments between their markers, add your own notes outside annotation entries, or remove a complete entry.
+5. Click **Reading notes** to open the **Comments** sidebar and review annotations. Hover either side to identify its counterpart; click its quote to navigate, or click the comment itself to edit directly inside its card. Inline editing supports Save/Cancel, outside-click autosave, and `Cmd + Enter`/`Esc`; failed or stale writes keep the draft. Each card shows its last update time; hover the time for creation and update details. Unlocated entries remain listed.
+6. Use the **Marglow: Open reading notes** command to open the companion Markdown file when you want to edit it directly. Edit comments between their markers, add your own notes outside annotation entries, or remove a complete entry.
 
 Navigation uses verified quotation/context matches. Clicking a sidebar quote loads distant Markdown sections or PDF pages before aligning the annotation. Clicking a source annotation opens the comments tab and scrolls to its card. Ambiguous or missing locations remain unlocated instead of being guessed. Virtual-section and PDF viewer internals stay isolated in their adapters and are checked for compatibility.
 
@@ -100,7 +100,7 @@ The companion Markdown note is the **only persistent annotation store**. There i
 
 File synchronization and cross-device conflicts belong to your chosen sync tool. Marglow does not implement merging, last-writer arbitration, conflict-copy selection, or deletion tombstones. It reloads current file content and refuses unsafe writes when it finds broken boundaries, malformed metadata, duplicate IDs, or conflict markers. A sync tool can restore older content or produce a structurally invalid merge; resolve that file through your normal workflow.
 
-Do not remove or alter generated metadata to edit a comment. If a note needs repair, open it from the Reading notes button and repair its structure before retrying. An existing unrelated note at the companion filename will not be overwritten.
+Do not remove or alter generated metadata to edit a comment. If a note needs repair, open it with the **Marglow: Open reading notes** command and repair its structure before retrying. An existing unrelated note at the companion filename will not be overwritten.
 
 ## Development and verification
 

@@ -12,7 +12,7 @@ Run `npm run check`, `npm run package`, and, on Mac, `npm run smoke:mac`. The sm
 
 ## Mac and iOS device checks
 
-- [ ] Check the Markdown toolbar against the top edge before and after scrolling.
+- [ ] Check the Markdown toolbar against the top edge before and after scrolling. It has no Comments button; Reading notes opens the native right sidebar for Markdown/PDF without opening a companion-note tab.
 - [ ] Verify Highlight/Underline/Comment icons and accessible labels. Save both styles on the same range in Markdown/PDF; reselecting reuses the same style, and underlines survive reload, zoom, rotation and scrolling.
 - [ ] Check the inline editor has one Save/Cancel action row and an accessible message-with-cross icon that clears only the comment, keeping its highlight and ID. Edit a comment in its sidebar card, then test outside-click autosave, cancel, keyboard shortcuts, a failed/stale write, and source switching; pending input remains visible on failure.
 - [ ] Confirm round, visible color swatches in both themes. Choose a color before selecting text, toggle Highlight mode, and start a comment from the page toolbar before selecting text.

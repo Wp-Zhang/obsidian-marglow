@@ -33,7 +33,7 @@ export class AnnotationSidebar {
     const document = this.element.ownerDocument;
     if (error || !annotations.length) {
       const status = document.createElement("p"); status.className = "marglow-sidebar-status";
-      status.textContent = error ? "Reading note needs repair. Open Reading notes to review it; annotations cannot be edited safely yet." : "No annotations yet. Select text to highlight or comment.";
+      status.textContent = error ? "Reading note needs repair. Use the Open reading notes command to review its file; annotations cannot be edited safely yet." : "No annotations yet. Select text to highlight or comment.";
       this.list.append(status);
     }
     for (const annotation of annotations) {
@@ -62,7 +62,7 @@ export class AnnotationSidebar {
       remove.addEventListener("click", () => this.remove(annotation));
       card.append(jump, comment, time, remove);
       if (unlocated.has(annotation.id)) {
-        const status = document.createElement("p"); status.className = "marglow-sidebar-status"; status.textContent = "Unlocated · reassociate from Reading notes"; card.append(status);
+        const status = document.createElement("p"); status.className = "marglow-sidebar-status"; status.textContent = "Unlocated · use Reassociate an annotation"; card.append(status);
       }
       card.addEventListener("pointermove", () => this.hover(annotation.id));
       card.addEventListener("pointerenter", () => this.hover(annotation.id));

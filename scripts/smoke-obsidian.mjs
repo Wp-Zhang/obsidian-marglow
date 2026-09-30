@@ -159,7 +159,10 @@ try {
   await page.waitForFunction(() => [...app.plugins.plugins.marglow.mounted.values()].some(mount => mount.session.entries.some(entry => entry.annotation.comment === "Direct edit.")));
   await page.waitForFunction(ids => ids.every(id => app.metadataCache.getFileCache(app.vault.getFileByPath("_marglow/Smoke.md.annotations.md"))?.blocks?.[id]), ids);
   passed("Direct Markdown edit and native block IDs");
-  await pageTools.getByRole("button", { name: "Comments", exact: true }).click();
+  const mainLeavesBeforeNotes = await page.evaluate(() => app.workspace.getLeavesOfType('markdown').length + app.workspace.getLeavesOfType('pdf').length);
+  assert.equal(await pageTools.getByRole("button", { name: "Comments", exact: true }).count(), 0);
+  await pageTools.getByRole("button", { name: /^Reading notes/ }).click();
+  assert.equal(await page.evaluate(() => app.workspace.getLeavesOfType('markdown').length + app.workspace.getLeavesOfType('pdf').length), mainLeavesBeforeNotes);
   const sidebar = page.getByRole("complementary", { name: "Annotation comments" });
   await sidebar.waitFor({ state: "visible" });
   assert.equal(await sidebar.getByRole("button", { name: "Close", exact: true }).count(), 0);
@@ -305,7 +308,7 @@ try {
   });
   assert.ok(scrollError < 3, `PDF scrolling drift: ${scrollError}px`);
   passed("PDF page-attached highlights follow every scroll frame without delayed positioning");
-  if (await sidebar.isHidden()) await pageTools.getByRole("button", { name: "Comments", exact: true }).click();
+  if (await sidebar.isHidden()) await pageTools.getByRole("button", { name: /^Reading notes/ }).click();
   const pdfCard = sidebar.locator('.marglow-comment-card').first();
   await pdfCard.getByRole("button", { name: /^Go to annotation:/ }).click();
   assert.equal(await page.locator('.marglow-highlight.is-active').count(), 3);
@@ -314,7 +317,7 @@ try {
   await page.screenshot({ path: `${output}/pdf-comments-sidebar.png` });
   await closeSidebar();
   passed("PDF sidebar navigation and cross-page selection/hover emphasis");
-  await pageTools.getByRole("button", { name: "Comments", exact: true }).click();
+  await pageTools.getByRole("button", { name: /^Reading notes/ }).click();
   await page.evaluate(async () => app.workspace.getLeaf("tab").openFile(app.vault.getFileByPath("Renamed.md"), { state: { mode: "preview" } }));
   await page.waitForFunction(() => document.querySelector('.marglow-comments-source')?.textContent === "Renamed.md");
   assert.ok(await sidebar.locator('.marglow-comment-card').filter({ hasText: "Comment from the page toolbar." }).count());
@@ -344,7 +347,7 @@ try {
   await highlightCount(3);
   await page.waitForFunction(geometryMatches);
   passed("Plugin cleanup, reload, and persistent PDF restoration");
-  await pageTools.getByRole("button", { name: "Comments", exact: true }).click();
+  await pageTools.getByRole("button", { name: /^Reading notes/ }).click();
   await sidebar.locator('.marglow-comment-jump').first().click();
   await page.keyboard.press("Meta+Backspace");
   await highlightCount(0);
@@ -354,7 +357,7 @@ try {
   await closeSidebar();
   await page.evaluate(async () => app.workspace.getLeaf(false).openFile(app.vault.getFileByPath("Renamed.md"), { state: { mode: "preview" } }));
   await page.waitForFunction(() => document.querySelectorAll('.marglow-highlight').length === 2);
-  await pageTools.getByRole("button", { name: "Comments", exact: true }).click();
+  await pageTools.getByRole("button", { name: /^Reading notes/ }).click();
   await sidebar.locator('.marglow-comment-jump').first().click();
   await page.keyboard.press("Delete");
   await page.waitForFunction(() => document.querySelectorAll('.marglow-comment-card').length === 1);
@@ -451,7 +454,7 @@ try {
   }
   await page.waitForFunction(() => document.querySelector('.marglow-file-tools > button:last-child')?.textContent === "Reading notes · 2");
   assert.equal(await page.locator(`.marglow-highlight[data-annotation-id="${longIds[1]}"]`).count(), 0);
-  await pageTools.getByRole("button", { name: "Comments", exact: true }).click();
+  await pageTools.getByRole("button", { name: /^Reading notes/ }).click();
   await sidebar.locator(`.marglow-comment-card[data-annotation-id="${longIds[1]}"] .marglow-comment-jump`).click();
   await page.waitForFunction(id => {
     const highlight = document.querySelector(`.marglow-highlight[data-annotation-id="${id}"]`), root = document.querySelector('.markdown-preview-view');
@@ -501,7 +504,7 @@ try {
     await app.plugins.plugins.marglow.store.save(session.source, { id, blockId: id, color: "blue", quote: captured.quote, comment: "", anchor: { ...captured.anchor, segments: captured.anchor.segments.map(segment => ({ ...segment, page: 29 })) }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
     return id;
   });
-  await pageTools.getByRole("button", { name: "Comments", exact: true }).click();
+  await pageTools.getByRole("button", { name: /^Reading notes/ }).click();
   await sidebar.locator(`.marglow-comment-card[data-annotation-id="${distantPdfId}"] .marglow-comment-jump`).click();
   await page.waitForFunction(id => {
     const layer = document.querySelector('.page[data-page-number="29"] .textLayer span'), highlight = document.querySelector(`.marglow-highlight[data-annotation-id="${id}"]`), root = document.querySelector('.marglow-source');

@@ -11,4 +11,4 @@ The icon was drawn directly as SVG. The banner was generated using the built-in 
 
 ## UI screenshots
 
-`screenshots/markdown-comments.png` and `screenshots/pdf-comments.png` are actual Obsidian 1.8.10 captures with Marglow 0.1.12, from an isolated demonstration Vault. Markdown uses an original sample note; PDF uses Vaswani et al., [Attention Is All You Need, arXiv v5](https://arxiv.org/abs/1706.03762v5). Comments are demonstration notes. The downloaded paper and temporary Vault are kept only under ignored `dev/`; source bytes were checked unchanged after annotating.
+`screenshots/markdown-comments.png` and `screenshots/pdf-comments.png` are actual Obsidian 1.8.10 captures with Marglow 0.1.13, from an isolated demonstration Vault. Markdown uses an original sample note; PDF uses Vaswani et al., [Attention Is All You Need, arXiv v5](https://arxiv.org/abs/1706.03762v5). Comments are demonstration notes. The downloaded paper and temporary Vault are kept only under ignored `dev/`; source bytes were checked unchanged after annotating.
