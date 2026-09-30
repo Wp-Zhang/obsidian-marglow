@@ -7,7 +7,7 @@ export class AnnotationSidebar {
   private cards = new Map<string, HTMLElement>();
   private signature = "";
 
-  constructor(document: Document, select: (annotation: Annotation, edit: boolean) => void, hover: (id: string | null) => void) {
+  constructor(document: Document, select: (annotation: Annotation, edit: boolean) => void, hover: (id: string | null) => void, private remove: (annotation: Annotation) => void) {
     this.element = document.createElement("aside");
     this.element.className = "marglow-ui marglow-sidebar";
     this.element.setAttribute("aria-label", "Annotation comments");
@@ -53,7 +53,11 @@ export class AnnotationSidebar {
       time.dateTime = annotation.updatedAt;
       time.textContent = new Date(annotation.updatedAt).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
       time.title = `Created: ${new Date(annotation.createdAt).toLocaleString()}\nUpdated: ${new Date(annotation.updatedAt).toLocaleString()}`;
-      card.append(jump, comment, time);
+      const remove = document.createElement("button");
+      remove.type = "button"; remove.className = "marglow-comment-delete"; remove.textContent = "Delete";
+      remove.setAttribute("aria-label", "Delete annotation"); remove.disabled = !!error;
+      remove.addEventListener("click", () => this.remove(annotation));
+      card.append(jump, comment, time, remove);
       if (unlocated.has(annotation.id)) {
         const status = document.createElement("p"); status.className = "marglow-sidebar-status"; status.textContent = "Unlocated · reassociate from Reading notes"; card.append(status);
       }

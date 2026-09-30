@@ -5,7 +5,7 @@ import { annotation } from "./helpers";
 afterEach(() => document.body.replaceChildren());
 
 it("renders user text safely and reflects external edits without changing annotation IDs", () => {
-  const sidebar = new AnnotationSidebar(document, vi.fn(), vi.fn());
+  const sidebar = new AnnotationSidebar(document, vi.fn(), vi.fn(), vi.fn());
   document.body.append(sidebar.element);
   const item = { ...annotation(), comment: '<img src=x onerror="alert(1)">' };
   sidebar.render([item], new Set(), "");
@@ -23,7 +23,7 @@ it("renders user text safely and reflects external edits without changing annota
 
 it("selects and edits the corresponding entry and distinguishes active from hovered", () => {
   const select = vi.fn(), hover = vi.fn();
-  const sidebar = new AnnotationSidebar(document, select, hover);
+  const sidebar = new AnnotationSidebar(document, select, hover, vi.fn());
   const first = annotation(), second = annotation("ann-second");
   sidebar.render([first, second], new Set(), "");
   sidebar.emphasize(first.id, second.id);
@@ -42,7 +42,7 @@ it("selects and edits the corresponding entry and distinguishes active from hove
 
 it("retains unlocated entries and pauses editing when parsing fails", () => {
   const select = vi.fn();
-  const sidebar = new AnnotationSidebar(document, select, vi.fn());
+  const sidebar = new AnnotationSidebar(document, select, vi.fn(), vi.fn());
   const item = annotation();
   sidebar.render([item], new Set([item.id]), "Broken metadata");
   expect(sidebar.element.textContent).toContain("Unlocated");
@@ -53,12 +53,20 @@ it("retains unlocated entries and pauses editing when parsing fails", () => {
 
 it("shows the last update time and uses the comment itself for editing without extra controls", () => {
   const select = vi.fn();
-  const sidebar = new AnnotationSidebar(document, select, vi.fn());
+  const sidebar = new AnnotationSidebar(document, select, vi.fn(), vi.fn());
   const item = annotation(); sidebar.render([item], new Set(), "");
   expect(sidebar.element.querySelector("time")!.dateTime).toBe(item.updatedAt);
   const buttons = [...sidebar.element.querySelectorAll<HTMLButtonElement>("button")];
-  expect(buttons).toHaveLength(2);
+  expect(buttons).toHaveLength(3);
   expect(buttons.some(button => ["Close", "Edit comment", "Add comment"].includes(button.textContent!))).toBe(false);
   sidebar.element.querySelector<HTMLButtonElement>(".marglow-comment-text")!.click();
   expect(select).toHaveBeenCalledWith(item, true);
+});
+
+it("routes the card delete button to its exact annotation", () => {
+  const remove = vi.fn();
+  const sidebar = new AnnotationSidebar(document, vi.fn(), vi.fn(), remove);
+  const item = annotation(); sidebar.render([item], new Set(), "");
+  sidebar.element.querySelector<HTMLButtonElement>('[aria-label="Delete annotation"]')!.click();
+  expect(remove).toHaveBeenCalledWith(item);
 });

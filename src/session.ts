@@ -1,3 +1,4 @@
+import { isAnnotationDelete } from "./keyboard";
 import { AnnotationSidebar } from "./sidebar";
 import type { Entry } from "./format";
 import { AnnotationStore } from "./store";
@@ -12,6 +13,7 @@ export interface SessionCallbacks {
   cancelReassociation(): void;
   onUiClosed(): void;
   openComments(session: AnnotationSession): void;
+  isActive(): boolean;
 }
 
 export class AnnotationSession {
@@ -78,7 +80,7 @@ export class AnnotationSession {
     this.pageComment.textContent = "Comment";
     this.pageComment.addEventListener("click", () => this.chooseTool("comment"));
     this.tools.append(this.pageHighlight, this.pageComment);
-    this.sidebar = new AnnotationSidebar(document, (annotation, edit) => { void this.selectFromSidebar(annotation, edit); }, id => this.emphasize(this.activeId, id));
+    this.sidebar = new AnnotationSidebar(document, (annotation, edit) => { void this.selectFromSidebar(annotation, edit); }, id => this.emphasize(this.activeId, id), annotation => { void this.removeFromSidebar(annotation); });
     this.ui.navigationContainer = this.sidebar.element;
     this.sidebar.element.classList.toggle("marglow-mobile", mobile);
     this.sidebarButton = document.createElement("button");
@@ -105,6 +107,19 @@ export class AnnotationSession {
       if (this.pointerActive) { this.pointerActive = false; clearTimeout(this.selectionTimer); this.selectionTimer = setTimeout(() => this.capture(), 0); }
     }, { capture: true, signal });
     document.addEventListener("pointercancel", () => { this.pointerActive = false; }, { signal });
+    document.addEventListener("keydown", event => {
+      if (!isAnnotationDelete(event) || !callbacks.isActive() || this.disposed || this.suspended || this.error || this.pageBusy || this.ui.isBusy || this.ui.hasDraft) return;
+      const entry = this.entries.find(entry => entry.annotation.id === this.activeId);
+      if (!entry) return;
+      const selection = document.getSelection();
+      if (selection && !selection.isCollapsed) {
+        const captured = this.currentSelection();
+        if (!captured || !this.adapter.matches(entry.annotation, captured)) return;
+      }
+      event.preventDefault(); event.stopPropagation();
+      this.pageBusy = true;
+      void this.removeEntry(entry).then(() => this.ui.close()).catch(error => callbacks.report(error instanceof Error ? error.message : String(error))).finally(() => { this.pageBusy = false; });
+    }, { capture: true, signal });
     document.addEventListener("selectionchange", () => {
       clearTimeout(this.selectionTimer);
       this.selectionTimer = setTimeout(() => this.capture(), 100);
@@ -180,11 +195,27 @@ export class AnnotationSession {
       highlight: (color: Annotation["color"], comment = annotation.comment) => save({ ...annotation, color, comment }),
       comment: (comment: string) => save({ ...annotation, comment }),
       ...(entry ? { delete: async () => {
-        await this.store.remove(this.source, entry.annotation.id, entry.raw);
-        this.adapter.root.ownerDocument.getSelection()?.removeAllRanges();
-        await this.refresh();
+        await this.removeEntry(entry);
       } } : {}),
     };
+  }
+
+  private async removeFromSidebar(annotation: Annotation): Promise<void> {
+    if (this.disposed || this.suspended || this.error || this.pageBusy || !await this.ui.finish()) return;
+    if (this.disposed || this.suspended || this.error || this.pageBusy) return;
+    const entry = this.entries.find(entry => entry.annotation.id === annotation.id);
+    if (!entry) return;
+    this.pageBusy = true;
+    try { await this.removeEntry(entry); }
+    catch (error) { this.callbacks.report(error instanceof Error ? error.message : String(error)); }
+    finally { this.pageBusy = false; }
+  }
+
+  private async removeEntry(entry: Entry): Promise<void> {
+    await this.store.remove(this.source, entry.annotation.id, entry.raw);
+    this.activeId = null; this.hoveredId = null; this.preview = null;
+    this.adapter.root.ownerDocument.getSelection()?.removeAllRanges();
+    await this.refresh();
   }
 
   private open(annotation: Annotation, rect: DOMRect): void {

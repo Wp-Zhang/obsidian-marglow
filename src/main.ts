@@ -138,6 +138,7 @@ export default class MarglowPlugin extends Plugin {
           }
           if (this.stopped || epoch !== this.epoch || !candidate.root.isConnected) { this.removeChild(owner); continue; }
           const callbacks: SessionCallbacks = {
+            isActive: () => this.app.workspace.activeLeaf?.view === view || (this.app.workspace.activeLeaf?.view.getViewType() === COMMENTS_VIEW && this.commentsSource === view),
             openComments: session => { void this.openComments(session).catch(error => this.report(String(error))); },
             report: message => this.report(message),
             openNote: source => this.openNote(source),

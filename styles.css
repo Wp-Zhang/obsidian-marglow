@@ -75,3 +75,9 @@
 .marglow-ui button.marglow-comment-text { display: block; width: 100%; padding: 4px 0; height: auto; text-align: left; font: inherit; color: var(--text-normal); background: transparent; box-shadow: none; border: 0; border-radius: 3px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .marglow-ui button.marglow-comment-text:hover { background: var(--background-modifier-hover); }
 .marglow-comment-time { display: block; margin-top: 6px; color: var(--text-muted); font-size: var(--font-ui-smaller); }
+
+.marglow-comment-card { position: relative; }
+.marglow-comment-time { padding-right: 64px; }
+.marglow-comment-delete { position: absolute; right: 8px; bottom: 8px; opacity: 0; pointer-events: none; color: var(--text-error); }
+.marglow-comment-card:hover .marglow-comment-delete, .marglow-comment-card:focus-within .marglow-comment-delete, .marglow-mobile .marglow-comment-delete { opacity: 1; pointer-events: auto; }
+@media (hover: none) { .marglow-comment-delete { opacity: 1; pointer-events: auto; } }
