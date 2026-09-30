@@ -1,6 +1,6 @@
 # Community submission preparation
 
-Prepared on 2026-09-30; updated for **0.2.2 — Public beta 3**. This document does not assert acceptance into the community directory.
+Prepared on 2026-09-30; updated on 2026-10-01 for **0.2.2 — Public beta 3** and the maintainer-reported iOS test pass. This document does not assert acceptance into the community directory.
 
 ## Submission details
 
@@ -13,7 +13,7 @@ Prepared on 2026-09-30; updated for **0.2.2 — Public beta 3**. This document d
 | Description | Highlight and comment on Markdown and PDF, with editable local Markdown reading notes. |
 | Release tag / manifest version | `0.2.2` |
 | Minimum app version | `1.8.10` |
-| Desktop only | false; physical iOS acceptance remains pending |
+| Desktop only | false; maintainer confirmed physical iOS testing passed on 2026-10-01 |
 | License | MIT |
 | Release | https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.2 |
 
@@ -38,13 +38,13 @@ The current official process is the [Obsidian Community directory submission flo
 - UI uses owner-document browser DOM creation to preserve document/window ownership and keep isolated tests independent of host DOM extensions.
 - Virtual Markdown section HTML is read into an inert template only, never mounted or executed. A narrowly explained `no-unsanitized/property` exception covers this native-viewer index; the official HTML advisory remains visible for review. Icon creation uses explicit SVG DOM nodes.
 - PDF and Markdown virtual-section dependencies are isolated in their adapters. Changes in the host can require adaptation. No OCR or editor-mode annotation support is claimed.
-- Physical iOS acceptance must still be completed using [TESTING.md](TESTING.md). Browser-compatible runtime and touch controls do not establish device acceptance.
+- The maintainer confirmed physical iOS testing passed on 2026-10-01. Device and app versions and individual checklist outcomes were not supplied; see [TESTING.md](TESTING.md) for the verification record and future regression checklist.
 - No runtime networking, telemetry, ads, paid access, external accounts, or access outside the Vault. Existing sync tools handle transport and conflicts; Marglow has no sync subsystem.
 - Reads and local entry updates preserve original source files and unrelated companion-note content. Malformed/ambiguous files stop unsafe writes.
 
 ## Author's final submission steps
 
-1. Complete the iOS device checklist and record outcomes; address any blocking failures before asserting mobile acceptance.
+1. Include the recorded Mac and maintainer-reported iOS verification results; record device/app versions in future device runs and address any new blocking failures.
 2. Sign in at https://community.obsidian.md and connect the repository owner's GitHub account.
 3. Choose **Plugins → New plugin**, supply the repository URL above, and select the owner.
 4. Review the [developer policies](https://docs.obsidian.md/community-directory/developer-policies), [submission requirements](https://docs.obsidian.md/community-directory/submission-requirements-for-plugins), and maintenance commitment before agreeing and submitting.
@@ -60,6 +60,6 @@ No legacy `obsidian-releases` pull request is prepared: the current official sub
 4. Attach the three built plugin files separately to a GitHub release with that tag, optionally adding the ZIP. Mark beta releases as prereleases.
 5. Download the published files and compare their hashes with the locally verified build.
 
-## 0.2.1 mobile follow-up
+## Mobile follow-up
 
-A phone toolbar inset issue and cross-device PDF geometry issue reported by the user were addressed. Desktop 1.13.7 native mobile emulation and Playwright WebKit 26.6 checks passed. A copied problematic PDF and reading note were tested without changing their bytes. Physical iOS retesting remains pending. The latest public beta is 0.2.2; physical iOS retesting remains pending.
+A phone toolbar inset issue and cross-device PDF geometry issue reported by the user were addressed. Desktop 1.13.7 native mobile emulation and Playwright WebKit 26.6 checks passed. A copied problematic PDF and reading note were tested without changing their bytes. The latest public beta is 0.2.2. The maintainer confirmed physical iOS testing passed on 2026-10-01.

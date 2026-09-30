@@ -6,7 +6,7 @@ Use a dedicated Vault with synthetic Markdown and PDF material. Never run these 
 
 - Automated checks cover Markdown round trips, direct edits, deletion, local-update preservation, stale-write rejection, malformed files, duplicate IDs, source association, text anchoring, PDF page transforms, cross-page selection, and composer persistence failures.
 - Mac smoke checks use actual Obsidian 1.8.10 with a private test profile. The 28 checks exercise visible round color swatches in light/dark themes, persistent page tools, active/hover distinction, native right-sidebar tabs with the Marglow line icon, document switching and focus association, Markdown/PDF persistence, source updates, per-frame PDF scroll alignment, zoom/rotation geometry, plugin reloads, and nonduplicated highlight/underline geometry across italic, linked, and nested styled text.
-- iOS physical-device selection, native menus, keyboard placement, and reopening remain unverified until the checklist below is run on a device. A desktop viewport or DOM test is not an iOS acceptance test.
+- The maintainer confirmed physical iOS testing passed on 2026-10-01. Device model, iOS version, Obsidian version, and individual checklist outcomes were not supplied. This is a reported device result, separate from the automated checks below.
 
 Run `npm run check`, `npm run package`, and, on Mac, `npm run smoke:mac`. The smoke script creates isolated fixtures and checks source-byte preservation before it exits. Inspect its screenshots in the printed local output directory.
 
@@ -19,11 +19,13 @@ For mobile changes, use both layers before requesting a physical-device retest:
 1. `npm run smoke:mobile` creates an isolated Vault and enables native `app.emulateMobile(true)`. To use an installed updated Obsidian runtime, set `OBSIDIAN_ASAR` to its cached versioned ASAR file; it is copied into the test profile, never modified. Record the app version printed by the script. Version 1.13.7 was checked for this fix, including actual downward/upward scroll-triggered native navigation hide/restore, toolbar adjacency and unchanged reading viewport/scroll offsets.
 2. Install the WebKit test engine with `npx playwright install webkit`, then run `npm run smoke:webkit`. This checks navigation insets, touch event delivery, PDF partial-selection capture, cross-scale rendering and page clipping at a phone viewport. Engine 26.6 was checked for this fix.
 3. The WebKit script saves a standalone `safari-fixture.html` under its ignored output directory for a native Safari check. The attempted native Safari launch in this session timed out; it is not recorded as a pass.
-4. Physical iOS still needs retesting, especially native selection handles, pinch gestures, floating navigation, keyboard changes and saved annotations reopened on another device. Desktop emulation and Playwright WebKit are not physical iOS acceptance.
+4. Repeat physical iOS checks after affected mobile changes, especially native selection handles, pinch gestures, floating navigation, keyboard changes, and saved annotations reopened on another device. Desktop emulation and Playwright WebKit do not replace physical iOS acceptance.
 
 For an existing problematic document, optional `OBSIDIAN_TEST_PDF` and `OBSIDIAN_TEST_NOTE` inputs copy it into the isolated mobile test Vault. Source bytes and copied notes are checked unchanged; copied user material and resulting screenshots stay under ignored `dev/`.
 
 ## Mac and iOS device checks
+
+Use this checklist for future regression runs. Unchecked boxes below are not a record of failures or the individual outcomes of the maintainer-reported iOS pass.
 
 - [ ] Check the Markdown toolbar against the top edge before and after scrolling. It has no Comments button; Reading notes opens the native right sidebar for Markdown/PDF without opening a companion-note tab.
 - [ ] Verify Highlight/Underline/Comment icons and accessible labels. Save both styles on the same range in Markdown/PDF; reselecting reuses the same style, and underlines survive reload, zoom, rotation and scrolling.

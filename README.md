@@ -4,92 +4,90 @@
 
 English · [简体中文](docs/README.zh-CN.md)
 
-Marglow adds in-place highlights and comments to Markdown and PDF reading in Obsidian. Each source has an editable Markdown reading note in its directory’s `_marglow/` folder; your source document stays unchanged.
+Highlight, underline, and comment on Markdown and PDFs without leaving your reading flow in Obsidian. Marglow keeps your annotations in editable Markdown reading notes while leaving source documents unchanged.
 
 The name combines **margin** and **glow**.
 
-## Screenshots
-
-**Markdown: highlight, underline, and edit comments in the sidebar.** The active annotation is outlined in the document and its matching card.
-
-![Markdown highlights and an underline with inline sidebar comment editing](assets/screenshots/markdown-comments.png)
-
-**PDF: annotate a real paper while keeping your comments alongside it.** Shown with Vaswani et al., [Attention Is All You Need](https://arxiv.org/abs/1706.03762v5); the comments are demonstration reading notes.
-
-![PDF highlights and underlines in Attention Is All You Need, linked to sidebar comments](assets/screenshots/pdf-comments.png)
-
 ## Status
 
-**0.2.2 is a public beta**, available from [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.2). It has not yet been reviewed or listed in Obsidian Community Plugins. Mac integration has been checked in Obsidian 1.8.10 using an isolated test Vault. iOS-compatible runtime code and touch controls are included, but **iOS device acceptance is still pending**. PDF integration uses Obsidian viewer internals and may require updates when the host viewer changes.
-
-The Markdown page toolbar stays flush with the top of the reading pane. A persistent page toolbar offers color selection, icon tools for Highlight, Underline, and Comment, and Reading notes. Reading notes opens the native right sidebar without opening another document tab. Choose a color before selecting text; activate Highlight to mark subsequent selections, or Comment to write on the next selection. Click the active tool again to turn it off. Floating selection tools remain available. On mobile, Reading notes uses an icon with an annotation-count badge so the toolbar stays on one row.
-
-0.2.2 keeps the phone Markdown toolbar attached below native navigation and hides/restores both together, without a fixed blank area or scroll jumps. The PDF geometry fixes from 0.2.1 are included. Unique same-page PDF quotations are displayed from current text geometry instead of replaying bad cross-device widths; original reading notes are not rewritten. Checked with Obsidian Desktop 1.13.7 mobile emulation and WebKit 26.6; physical iOS retesting remains pending.
+**0.2.2 is a public beta**, available from [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.2). Tested on Mac and iOS, including physical iOS device testing. It is not yet listed in Obsidian Community Plugins.
 
 ## Features
 
-- Delete a selected annotation with `Delete`, `Backspace`, or Mac `Cmd + Delete`. Text inputs retain normal editing shortcuts. Cards also show Delete at the bottom right on hover or keyboard focus; touch controls remain visible. Deleting removes the highlight and its comment together.
-- Selected annotations have a distinct solid outline; hovering uses a lighter dashed outline.
-- A per-document **Comments** sidebar with quotes, comments, bidirectional hover, click-to-jump, and comment editing. Comments opens as a native Obsidian right-sidebar tab beside Outline and Backlinks, and follows the active Markdown/PDF document. Obsidian controls its sizing and mobile drawer.
-- Independent background highlights and underlines. Each uses the four colors; the same range can contain one of each without replacing the other. Older entries without a style remain background highlights.
-- Four highlight colors and a lightweight comment composer, directly beside a text selection.
+- Background highlights and underlines in four colors, with optional comments.
 - Markdown **Reading view**, including selections across formatting and paragraphs.
-- Text-selectable PDFs, with multiple page segments under one annotation and page-attached highlights that follow scrolling, zoom, and rotation.
-- Independent overlapping annotations; exact selections reuse an existing annotation of the same style.
-- Autosave comments when clicking or tapping outside the composer. Save/cancel buttons, `Cmd + Enter`, and `Esc` are available.
-- A companion `_marglow/source.md.annotations.md` or `_marglow/source.pdf.annotations.md` note containing readable quotes, comments, stable block IDs, and hidden positioning metadata.
-- Direct comment edits and complete-entry deletions in the companion note reflected in the source view.
-- Manual reassociation of unlocated annotations and relinking a reading note to a replacement source.
-- Local file validation and updates that preserve handwritten notes and unrelated entries.
+- Text-selectable PDFs, including selections across pages.
+- A native Obsidian **Comments** sidebar with inline editing, timestamps, and navigation between annotations and their cards.
+- Overlapping annotations, with distinct selected and hovered states.
+- Editable Markdown reading notes, with quotes you can reference using ordinary Obsidian block links.
+- Manual reassociation for annotations whose source text has moved or changed.
+- Local storage, no network services, and compatibility with your existing Vault sync workflow.
 
-Windows, Markdown editing-view annotations, OCR, dedicated Copy link/Copy quote actions, PDF write-back, and advanced annotation dashboards are outside this initial scope.
+## Screenshots
 
-## Install the public beta
+**Markdown: highlight, underline, and edit comments in the sidebar.**
 
-Download `marglow-0.2.2.zip` from the [0.2.2 release](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.2), extract it, and copy the three files inside `marglow/` into `<vault>/.obsidian/plugins/marglow/`. Reload Obsidian and enable **Marglow** in Community plugins settings. Individual `main.js`, `manifest.json`, and `styles.css` downloads are also available.
+![Markdown highlights and an underline with inline sidebar comment editing](assets/screenshots/markdown-comments.png)
 
-With [BRAT](https://github.com/TfTHacker/obsidian42-brat), add `Wp-Zhang/obsidian-marglow` and allow prerelease versions, or select version `0.2.2` explicitly. Start in a test Vault. iOS uses the same files and your existing sync workflow; device acceptance is still pending.
+**PDF: read a paper with your annotations alongside it.** Shown with Vaswani et al., [Attention Is All You Need](https://arxiv.org/abs/1706.03762v5); the comments are demonstration reading notes.
 
-Report issues through [GitHub Issues](https://github.com/Wp-Zhang/obsidian-marglow/issues/new/choose) with versions, device, reproduction steps, and a sample with private content removed.
+![PDF highlights and underlines in Attention Is All You Need, linked to sidebar comments](assets/screenshots/pdf-comments.png)
 
-## Install a development build
+## Installation
 
-Requires Node.js 22 or later for building and Obsidian 1.8.10 or later for running. No Node.js runtime is required inside Obsidian or on iOS.
+Requires **Obsidian 1.8.10 or later**. Mac and iOS are the supported platforms for this beta.
 
-Packaging also uses the system `zip` command, included with macOS and the Ubuntu CI runner.
+### Manual installation
 
-```sh
-npm ci
-npm run check
-npm run package
-```
+1. Download `marglow-0.2.2.zip` from the [release page](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.2) and extract it.
+2. Copy `main.js`, `manifest.json`, and `styles.css` from the extracted `marglow/` folder into `<vault>/.obsidian/plugins/marglow/`.
+3. Reload Obsidian and enable **Marglow** under **Settings → Community plugins**.
 
-Copy the **contents** of `dist/marglow/` into `<your-test-vault>/.obsidian/plugins/marglow/`. The plugin directory must contain `main.js`, `manifest.json`, and `styles.css` directly. Reload Obsidian and enable Marglow under **Settings → Community plugins**.
+On iOS, transfer the same three files to your Vault’s plugin directory using your file manager or sync workflow, then enable Marglow on the device. Some sync tools do not transfer the hidden `.obsidian/` configuration folder automatically.
 
-For iOS, place those same three files in the target Vault's plugin directory using your existing file-management or sync workflow, then enable the plugin on the device. Whether hidden configuration folders are transferred depends on that workflow; Marglow does not configure it. Use a dedicated test Vault for initial verification.
+### BRAT
+
+With [BRAT](https://github.com/TfTHacker/obsidian42-brat), add `Wp-Zhang/obsidian-marglow` and allow prerelease versions, or select `0.2.2` explicitly.
+
+Start in a test Vault. Report problems through [GitHub Issues](https://github.com/Wp-Zhang/obsidian-marglow/issues/new/choose), including app/plugin versions, device, reproduction steps, and a sample with private content removed.
 
 ## Use
 
-1. Open a Markdown note in **Reading view**, or open a PDF with a selectable text layer.
-2. Select text, then pick a color or choose **Comment**. There is no need to open a reading note first.
-3. Write a comment and save explicitly or click/tap outside. Cancel discards the current unsaved edit; saving an empty existing comment keeps its highlight.
-4. Click highlighted text to change its color, edit/remove its comment, or delete the annotation. For overlaps, choose an entry from the short list.
-5. Click **Reading notes** to open the **Comments** sidebar and review annotations. Hover either side to identify its counterpart; click its quote to navigate, or click the comment itself to edit directly inside its card. Inline editing supports Save/Cancel, outside-click autosave, and `Cmd + Enter`/`Esc`; failed or stale writes keep the draft. Each card shows its last update time; hover the time for creation and update details. Unlocated entries remain listed.
-6. Use the **Marglow: Open reading notes** command to open the companion Markdown file when you want to edit it directly. Edit comments between their markers, add your own notes outside annotation entries, or remove a complete entry.
+1. Open a Markdown note in **Reading view** or a PDF with selectable text.
+2. Select text and choose a color for a highlight, or use the Underline or Comment tool. You can also activate a toolbar tool before selecting text; click the active tool again to turn it off.
+3. Write a comment and save, or click/tap outside to save automatically. Cancel discards the current unsaved edit. On Mac, use `Cmd + Enter` to save and `Esc` to cancel.
+4. Click an annotation to change its color, edit its comment, or delete it. For overlapping annotations, choose the entry you want to edit.
+5. Click **Reading notes** (an icon with a count on mobile) to open the native **Comments** sidebar. Click a quote to jump to its annotation; click comment text to edit it in the card. Clicking an annotation also reveals its sidebar card.
 
-Navigation uses verified quotation/context matches. Clicking a sidebar quote loads distant Markdown sections or PDF pages before aligning the annotation. Clicking a source annotation opens the comments tab and scrolls to its card. Ambiguous or missing locations remain unlocated instead of being guessed. Virtual-section and PDF viewer internals stay isolated in their adapters and are checked for compatibility.
+Delete a selected annotation with `Delete`, `Backspace`, or Mac `Cmd + Delete`, or use its trash icon. Deleting an annotation removes both its mark and comment; clearing only the comment keeps the mark. Text inputs retain normal editing shortcuts. Unsaved comments remain available if saving fails.
 
-New reading notes live in an ordinary `_marglow/` subfolder of each source directory. Root-level sources use `_marglow/` at the Vault root. Source extensions stay in note names to distinguish Markdown from PDF. Existing sidecar notes remain supported and are edited in place. You can move an existing reading note into `_marglow/` through Obsidian; its source metadata keeps the association. Keep one canonical reading note per source.
+Annotations that cannot be located remain in the sidebar. Use **Reassociate an annotation** to attach one to replacement text; Marglow does not guess ambiguous locations.
 
-Reading notes are created only when the first annotation is saved. To delete an entry manually, remove everything from its `oa:annotation:start` marker through the matching `oa:annotation:end` marker. Keep metadata and IDs intact when editing just a comment.
+## Reading notes and synchronization
 
-Native references to a saved quote work as ordinary Obsidian block links:
+A reading note is created when you save the first annotation. New notes live in the source directory’s ordinary `_marglow/` subfolder:
 
-```markdown
-[[folder/_marglow/source.md.annotations#^ann-<saved-id>]]
+```text
+article.md
+paper.pdf
+_marglow/
+  article.md.annotations.md
+  paper.pdf.annotations.md
 ```
 
-Use an actual block ID from the companion note, not the placeholder above. Removing an annotation also removes its block reference target. Other edits and reassociation keep its ID stable.
+Existing companion notes remain supported in their original locations. Keep one reading note per source.
+
+Use **Marglow: Open reading notes** to edit the Markdown file directly. You can edit comments between their markers and add your own notes outside annotation entries. Keep generated metadata and IDs intact. To delete an entry manually, remove everything from its `oa:annotation:start` marker through the matching `oa:annotation:end` marker.
+
+Saved quotes support ordinary Obsidian block references:
+
+```markdown
+[[folder/_marglow/article.md.annotations#^ann-<saved-id>]]
+```
+
+Replace the placeholder with the actual block ID from the reading note. Editing or reassociating an annotation keeps its ID; deleting it removes the reference target.
+
+Reading notes are the only persistent annotation store. Marglow never rewrites source Markdown or PDFs. Your sync tool handles file transfer and cross-device conflicts. If a reading note contains conflict markers, duplicate IDs, or damaged metadata, Marglow pauses unsafe writes until the file is repaired. Unrelated notes and handwritten content are preserved.
 
 ### Commands
 
@@ -97,37 +95,34 @@ All command names have the `Marglow:` prefix in the command palette.
 
 | Command | Purpose |
 | --- | --- |
-| Open comments sidebar | Open the native Marglow comments tab |
-| Open reading notes | Open the companion note for the current source |
-| Open source document | Open the source referenced by the current reading note |
-| Reassociate an annotation | Choose an entry, select replacement text in its source, then press Reassociate |
+| Open comments sidebar | Open the native comments tab |
+| Open reading notes | Open the current source’s companion Markdown note |
+| Open source document | Open the source linked to the current reading note |
+| Reassociate an annotation | Choose an entry, select replacement text, then press Reassociate |
 | Cancel reassociation | Cancel the pending replacement selection |
-| Relink reading notes to a source document | From a reading note, explicitly choose a replacement source of the same type |
+| Relink reading notes to a source document | Choose a replacement source of the same type from a reading note |
 
-## Data and synchronization
+## Limitations
 
-The companion Markdown note is the **only persistent annotation store**. There is no separate JSON database. Source Markdown and PDFs are never rewritten to add annotations or block IDs.
+- Markdown editing views and scanned PDFs without a text layer are not supported.
+- Windows has not been verified for this beta.
+- Annotations stay in reading notes; they are not embedded into PDFs or source Markdown.
+- PDF integration depends on Obsidian’s viewer internals, so host updates may require compatibility fixes.
+- Dedicated Copy link and Copy quote actions are not yet available; use block references from the reading note.
 
-File synchronization and cross-device conflicts belong to your chosen sync tool. Marglow does not implement merging, last-writer arbitration, conflict-copy selection, or deletion tombstones. It reloads current file content and refuses unsafe writes when it finds broken boundaries, malformed metadata, duplicate IDs, or conflict markers. A sync tool can restore older content or produce a structurally invalid merge; resolve that file through your normal workflow.
+## Development
 
-Do not remove or alter generated metadata to edit a comment. If a note needs repair, open it with the **Marglow: Open reading notes** command and repair its structure before retrying. An existing unrelated note at the companion filename will not be overwritten.
-
-## Development and verification
+Building requires Node.js 22 or later and the system `zip` command. Node.js is not required to run the plugin.
 
 ```sh
-npm run dev          # Watch and rebuild main.js
-npm run typecheck    # TypeScript validation
-npm test             # Persistence, anchoring, PDF geometry, and UI tests
-npm run check        # Type checking and tests
-npm run package      # Build installable files in dist/marglow/
-npm run smoke:mac    # Actual Obsidian smoke test in an isolated local Vault
+npm ci
+npm run check        # Type checking, lint, and tests
+npm run package      # Installable files in dist/marglow/
 ```
 
-The Mac smoke test requires Obsidian at `/Applications/Obsidian.app` or an `OBSIDIAN_BIN` executable override. It creates its own application profile and Vault under ignored `dev/`, checks their identity before operating, and closes its own test process afterward. It does not install into or modify a personal Vault.
+Install the contents of `dist/marglow/` in a dedicated test Vault using the manual installation steps above. `npm run dev` watches and rebuilds during development.
 
-See [the manual acceptance checklist](docs/TESTING.md) for device-specific verification and [AGENTS.md](AGENTS.md) for development principles. The detailed design document remains local under ignored `dev/` and is not included in Git.
-
-The runtime has no bundled third-party dependencies beyond the Obsidian API supplied by the host. Development references are used for API research only; their code is not shipped.
+For host integration checks, use `npm run smoke:mac`, `npm run smoke:mobile`, and `npm run smoke:webkit`. See [testing instructions and the device checklist](docs/TESTING.md) for setup and recorded verification, and [AGENTS.md](AGENTS.md) for development principles.
 
 ## License
 
