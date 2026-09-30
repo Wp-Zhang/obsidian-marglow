@@ -3,6 +3,7 @@ import * as esbuild from "esbuild";
 const options = {
   entryPoints: ["src/main.ts"],
   bundle: true,
+  loader: { ".svg": "text" },
   external: ["obsidian"],
   format: "cjs",
   platform: "browser",

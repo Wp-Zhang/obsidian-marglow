@@ -1,5 +1,7 @@
 # Marglow
 
+![Marglow — a glowing page and a spark of insight](../assets/marglow-banner.png)
+
 [English](../README.md) · 简体中文
 
 Marglow 为 Obsidian 中的 Markdown 与 PDF 提供就地高亮和评论。每份材料拥有一份可编辑的 Markdown 阅读笔记，集中放在该材料目录的 `_marglow/` 子目录中，源文件保持不变。
@@ -8,7 +10,7 @@ Marglow 为 Obsidian 中的 Markdown 与 PDF 提供就地高亮和评论。每�
 
 ## 当前状态
 
-**0.1.9 是初版开发构建**，尚未发布到社区插件目录。Mac 集成已在 Obsidian 1.8.10 的独立测试 Vault 中验证。代码采用 iOS 可用的运行时能力并提供触屏控件，但 **iOS 真机验收尚未完成**。PDF 集成使用 Obsidian 查看器内部接口，宿主更新后可能需要适配。
+**0.1.10 是初版开发构建**，尚未发布到社区插件目录。Mac 集成已在 Obsidian 1.8.10 的独立测试 Vault 中验证。代码采用 iOS 可用的运行时能力并提供触屏控件，但 **iOS 真机验收尚未完成**。PDF 集成使用 Obsidian 查看器内部接口，宿主更新后可能需要适配。
 
 Markdown 工具栏固定在阅读区域顶部，不随正文留白下移。页面常驻工具栏提供颜色选择、荧光笔 Highlight／下划线 Underline／消息框 Comment 图标和 Reading notes。可先选颜色，再开启 Highlight 标注后续选区；也可先点 Comment，再选择文字输入评论。再次点击已开启的工具即可关闭模式，选区浮动工具栏仍然保留。
 

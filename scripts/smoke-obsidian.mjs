@@ -185,6 +185,10 @@ try {
   await page.evaluate(async () => app.vault.process(app.vault.getFileByPath("_marglow/Smoke.md.annotations.md"), text => text.replace("Sidebar edit.", "Direct edit.")));
   await page.waitForFunction(() => document.querySelector('.marglow-sidebar')?.textContent.includes("Direct edit."));
   assert.equal(await page.evaluate(() => app.workspace.getLeavesOfType('marglow-comments').length), 1);
+  assert.equal(await page.evaluate(() => {
+    const leaf = app.workspace.getLeavesOfType('marglow-comments')[0];
+    return leaf.view.getIcon() === 'marglow' && !!leaf.tabHeaderEl.querySelector('svg path[d="M32 36v30M45 40h12M45 53h16M45 66h16"]');
+  }), true);
   assert.equal(await sidebar.evaluate(element => !!element.closest('.mod-right-split')), true);
   assert.equal(await page.locator('.marglow-sidebar-docked, .marglow-pane').count(), 0);
   await page.screenshot({ path: `${output}/comments-sidebar.png` });

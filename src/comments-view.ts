@@ -9,7 +9,7 @@ export class CommentsView extends ItemView {
   constructor(leaf: WorkspaceLeaf) { super(leaf); }
   getViewType(): string { return COMMENTS_VIEW; }
   getDisplayText(): string { return "Marglow comments"; }
-  getIcon(): string { return "message-square"; }
+  getIcon(): string { return "marglow"; }
 
   setSession(session: AnnotationSession | null): void {
     if (this.session === session && this.contentEl.childElementCount) return;

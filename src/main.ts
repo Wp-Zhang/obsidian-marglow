@@ -1,4 +1,5 @@
-import { Component, FuzzySuggestModal, MarkdownRenderer, MarkdownView, Notice, Platform, Plugin, type TFile, type View } from "obsidian";
+import { addIcon, Component, FuzzySuggestModal, MarkdownRenderer, MarkdownView, Notice, Platform, Plugin, type TFile, type View } from "obsidian";
+import marglowIcon from "../assets/marglow-icon.svg";
 import { AnnotationStore, readingNotePath } from "./store";
 import { isReadingNote, parseReadingNote, type Entry } from "./format";
 import { MarkdownAdapter } from "./markdown-adapter";
@@ -48,6 +49,7 @@ export default class MarglowPlugin extends Plugin {
   private lastMessageTime = 0;
 
   onload(): void {
+    addIcon("marglow", marglowIcon);
     this.store = new AnnotationStore(this.app);
     this.registerView(COMMENTS_VIEW, leaf => new CommentsView(leaf));
     this.addCommand({ id: "open-comments", name: "Open comments sidebar", callback: () => { void this.openComments().catch(error => this.report(String(error))); } });
