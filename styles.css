@@ -15,13 +15,20 @@
 }
 .marglow-ui button { min-height: 32px; cursor: pointer; }
 .marglow-mobile button { min-height: 44px; }
-.marglow-color { width: 28px; border-radius: 50%; padding: 0; border: 2px solid var(--background-modifier-border); }
-.marglow-mobile .marglow-color { width: 44px; }
+.marglow-ui button.marglow-color {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 32px; width: 32px; height: 32px; min-width: 32px; min-height: 32px;
+  padding: 0; line-height: 1; border-radius: 50%; box-sizing: border-box;
+  background: transparent; border: 1px solid transparent; box-shadow: none;
+}
+.marglow-color-dot { display: block; width: 22px; height: 22px; flex: 0 0 22px; border-radius: 50%; box-sizing: border-box; border: 1px solid rgba(0,0,0,0.15); }
+.marglow-ui button.marglow-color:hover { background: var(--background-modifier-hover); }
+.marglow-ui button.marglow-color[aria-pressed="true"] { border-color: var(--text-accent); }
+.marglow-mobile button.marglow-color { flex-basis: 44px; width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
 .marglow-yellow { --marglow-color: #f6cd53; }
 .marglow-green { --marglow-color: #72c890; }
 .marglow-blue { --marglow-color: #79b7ed; }
 .marglow-pink { --marglow-color: #e997b7; }
-.marglow-color { background: var(--marglow-color); }
 .marglow-composer { flex-direction: column; width: 360px; max-height: 80vh; overflow: auto; }
 .marglow-composer label { font-weight: 600; }
 .marglow-composer textarea { width: 100%; min-height: 100px; resize: vertical; font: inherit; }
@@ -33,8 +40,10 @@
 .marglow-highlight { position: absolute; background: var(--marglow-color); opacity: 0.32; pointer-events: none; border-radius: 2px; }
 .marglow-highlight[data-comment="true"] { border-bottom: 2px solid var(--marglow-color); }
 .marglow-source { position: relative; }
-.marglow-file-tools { position: sticky; top: 4px; height: 0; display: flex; justify-content: flex-end; gap: 6px; z-index: 5; pointer-events: none; }
-.marglow-file-tools button { pointer-events: auto; font-size: var(--font-ui-smaller); opacity: 0.85; }
+.marglow-file-tools { position: sticky; top: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 6px 10px; min-height: 44px; z-index: 5; background: var(--background-primary); border-bottom: 1px solid var(--background-modifier-border); }
+.marglow-file-tools button { font-size: var(--font-ui-smaller); }
+.marglow-file-tools > button:last-child { margin-left: auto; }
+.marglow-file-tools > button[aria-pressed="true"]:not(.marglow-color) { background: var(--interactive-accent); color: var(--text-on-accent); }
 .marglow-file-tools[data-error="true"] button { color: var(--text-error); }
 .marglow-note-actions { display: flex; gap: 6px; }
 @media (prefers-reduced-motion: no-preference) {

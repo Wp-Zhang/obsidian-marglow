@@ -1,7 +1,7 @@
 import type { Entry } from "./format";
 import { AnnotationStore } from "./store";
-import { AnnotationUI } from "./ui";
-import { createAnnotation, type Annotation, type CapturedSelection, type DocumentAdapter, type LocatedAnnotation, type Source } from "./model";
+import { AnnotationUI, colorButton } from "./ui";
+import { COLORS, createAnnotation, type Color, type Annotation, type CapturedSelection, type DocumentAdapter, type LocatedAnnotation, type Source } from "./model";
 
 export interface SessionCallbacks {
   report(message: string): void;
@@ -29,6 +29,12 @@ export class AnnotationSession {
   private error = "";
   private suspended = false;
   private pointerStart: { x: number; y: number } | null = null;
+  private preferredColor: Color = "yellow";
+  private toolMode: "highlight" | "comment" | null = null;
+  private pageHighlight: HTMLButtonElement;
+  private pageComment: HTMLButtonElement;
+  private pageBusy = false;
+  private pointerActive = false;
 
   constructor(readonly source: Source, readonly adapter: DocumentAdapter, private store: AnnotationStore, mobile: boolean, private callbacks: SessionCallbacks) {
     const root = adapter.root;
@@ -38,16 +44,44 @@ export class AnnotationSession {
     this.overlay.className = "marglow-overlay";
     this.overlay.setAttribute("aria-hidden", "true");
     this.tools = document.createElement("div");
-    this.tools.className = "marglow-ui marglow-file-tools";
+    this.tools.className = `marglow-ui marglow-file-tools${mobile ? " marglow-mobile" : ""}`;
+    this.tools.setAttribute("role", "toolbar");
+    this.tools.setAttribute("aria-label", "Page annotation tools");
+    this.tools.addEventListener("pointerdown", event => {
+      if ((event.target as Element).closest("button")) { event.preventDefault(); event.stopPropagation(); }
+    });
+    for (const color of COLORS) {
+      colorButton(this.tools, color, async () => {
+        if (this.ui.hasDraft || this.ui.isBusy) return;
+        this.preferredColor = color;
+        this.updatePageTools();
+        const selection = this.currentSelection();
+        if (selection) await this.pageAction(selection, "highlight");
+      }, `Choose ${color}`);
+    }
+    this.pageHighlight = document.createElement("button");
+    this.pageHighlight.type = "button";
+    this.pageHighlight.textContent = "Highlight";
+    this.pageHighlight.addEventListener("click", () => this.chooseTool("highlight"));
+    this.pageComment = document.createElement("button");
+    this.pageComment.type = "button";
+    this.pageComment.textContent = "Comment";
+    this.pageComment.addEventListener("click", () => this.chooseTool("comment"));
+    this.tools.append(this.pageHighlight, this.pageComment);
     this.notesButton = document.createElement("button");
     this.notesButton.textContent = "Reading notes";
     this.notesButton.addEventListener("click", () => { void callbacks.openNote(source).catch(error => callbacks.report(String(error))); });
     this.tools.append(this.notesButton);
+    this.updatePageTools();
     root.classList.add("marglow-source");
     root.prepend(this.tools);
     root.append(this.overlay);
     const signal = this.abort.signal;
-    root.addEventListener("pointerdown", event => { this.pointerStart = { x: event.clientX, y: event.clientY }; }, { signal });
+    root.addEventListener("pointerdown", event => { this.pointerStart = { x: event.clientX, y: event.clientY }; this.pointerActive = true; }, { signal });
+    document.addEventListener("pointerup", () => {
+      if (this.pointerActive) { this.pointerActive = false; clearTimeout(this.selectionTimer); this.selectionTimer = setTimeout(() => this.capture(), 0); }
+    }, { capture: true, signal });
+    document.addEventListener("pointercancel", () => { this.pointerActive = false; }, { signal });
     document.addEventListener("selectionchange", () => {
       clearTimeout(this.selectionTimer);
       this.selectionTimer = setTimeout(() => this.capture(), 100);
@@ -79,7 +113,7 @@ export class AnnotationSession {
   }
 
   private capture(): void {
-    if (this.disposed || this.suspended || this.ui.hasDraft || this.ui.isBusy || this.error) return;
+    if (this.disposed || this.suspended || this.pointerActive || this.ui.hasDraft || this.ui.isBusy || this.error) return;
     try {
       const selection = this.adapter.root.ownerDocument.getSelection();
       if (!selection || selection.isCollapsed) return;
@@ -90,6 +124,7 @@ export class AnnotationSession {
         return;
       }
       const existing = this.entries.find(entry => this.adapter.matches(entry.annotation, captured));
+      if (this.toolMode) { void this.pageAction(captured, this.toolMode); return; }
       this.ui.show(captured, this.actions(captured, existing), existing?.annotation);
     } catch (error) {
       this.callbacks.report(error instanceof Error ? error.message : String(error));
@@ -97,7 +132,7 @@ export class AnnotationSession {
   }
 
   private actions(selection: CapturedSelection, entry?: Entry) {
-    const annotation = entry?.annotation ?? createAnnotation(selection, "yellow");
+    const annotation = entry?.annotation ?? createAnnotation(selection, this.preferredColor);
     const save = async (updated: Annotation) => {
       if (this.disposed) throw new Error("The source view closed. Reopen it before saving.");
       await this.store.save(this.source, { ...updated, updatedAt: new Date().toISOString() }, entry?.raw);
@@ -119,6 +154,50 @@ export class AnnotationSession {
     const entry = this.entries.find(entry => entry.annotation.id === annotation.id);
     if (!entry || this.error) return;
     this.ui.show({ quote: annotation.quote, anchor: annotation.anchor, rect }, this.actions({ quote: annotation.quote, anchor: annotation.anchor, rect }, entry), annotation);
+  }
+
+  private currentSelection(): CapturedSelection | null {
+    if (this.disposed || this.suspended || this.error) return null;
+    try {
+      const selection = this.adapter.root.ownerDocument.getSelection();
+      return selection && !selection.isCollapsed ? this.adapter.capture(selection) : null;
+    } catch (error) {
+      this.callbacks.report(error instanceof Error ? error.message : String(error));
+      return null;
+    }
+  }
+
+  private chooseTool(mode: "highlight" | "comment"): void {
+    if (this.ui.hasDraft || this.ui.isBusy) return;
+    const selection = this.currentSelection();
+    if (selection) { void this.pageAction(selection, mode); return; }
+    this.ui.close();
+    this.toolMode = this.toolMode === mode ? null : mode;
+    this.updatePageTools();
+  }
+
+  private async pageAction(selection: CapturedSelection, mode: "highlight" | "comment"): Promise<void> {
+    if (this.pageBusy || this.ui.hasDraft || this.ui.isBusy || this.callbacks.isReassociating()) return;
+    const entry = this.entries.find(entry => this.adapter.matches(entry.annotation, selection));
+    const actions = this.actions(selection, entry);
+    if (mode === "comment") {
+      this.toolMode = null;
+      this.updatePageTools();
+      this.ui.showComment(selection, actions, entry?.annotation);
+      return;
+    }
+    this.pageBusy = true;
+    try { await actions.highlight(this.preferredColor); this.ui.close(); }
+    catch (error) { this.callbacks.report(error instanceof Error ? error.message : String(error)); }
+    finally { this.pageBusy = false; }
+  }
+
+  private updatePageTools(): void {
+    this.tools.querySelectorAll<HTMLButtonElement>(".marglow-color").forEach(button => button.setAttribute("aria-pressed", String(button.classList.contains(`marglow-${this.preferredColor}`))));
+    this.pageHighlight.setAttribute("aria-pressed", String(this.toolMode === "highlight"));
+    this.pageComment.setAttribute("aria-pressed", String(this.toolMode === "comment"));
+    this.pageHighlight.title = this.toolMode === "highlight" ? "Highlight mode on — select text, or click to turn off" : "Highlight the selection or activate highlight mode";
+    this.pageComment.title = this.toolMode === "comment" ? "Select text to add a comment" : "Comment on the selection or select text next";
   }
 
   async refresh(): Promise<void> {

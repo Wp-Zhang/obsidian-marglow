@@ -78,6 +78,24 @@ try {
   await trust.click();
   await page.waitForSelector(".marglow-file-tools button");
   await page.evaluate(() => app.setting.close());
+  const pageTools = page.getByRole("toolbar", { name: "Page annotation tools" });
+  assert.equal(await pageTools.locator(".marglow-color").count(), 4);
+  for (const dark of [false, true]) {
+    const swatches = await page.evaluate(dark => {
+      document.body.classList.toggle("theme-dark", dark);
+      document.body.classList.toggle("theme-light", !dark);
+      return [...document.querySelectorAll(".marglow-file-tools .marglow-color-dot")].map(dot => {
+        const rect = dot.getBoundingClientRect();
+        return { color: getComputedStyle(dot).backgroundColor, width: rect.width, height: rect.height };
+      });
+    }, dark);
+    assert.deepEqual(swatches.map(swatch => swatch.color), ["rgb(246, 205, 83)", "rgb(114, 200, 144)", "rgb(121, 183, 237)", "rgb(233, 151, 183)"]);
+    assert.ok(swatches.every(swatch => swatch.width > 16 && Math.abs(swatch.width - swatch.height) < 0.1));
+  }
+  await pageTools.getByRole("button", { name: "Choose blue", exact: true }).click();
+  assert.equal(await pageTools.getByRole("button", { name: "Choose blue", exact: true }).getAttribute("aria-pressed"), "true");
+  assert.equal(await page.evaluate(() => !!app.vault.getFileByPath("Smoke.md.annotations.md")), false);
+  passed("Persistent toolbar and round visible color swatches in light/dark themes");
 
   const selectStrong = async end => {
     await page.evaluate(end => {
@@ -103,7 +121,7 @@ try {
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   };
   await clickHighlight();
-  await page.getByRole("button", { name: "Comment", exact: true }).click();
+  await page.locator('.marglow-toolbar').getByRole("button", { name: "Comment", exact: true }).click();
   await page.getByRole("textbox", { name: "Comment", exact: true }).fill("A persisted comment.");
   await page.locator(".markdown-preview-view h1").click();
   await page.waitForFunction(async () => (await app.vault.read(app.vault.getFileByPath("Smoke.md.annotations.md"))).includes("A persisted comment."));
@@ -129,13 +147,13 @@ try {
 
   markdown = "Inserted introduction.\n\n" + markdown;
   await page.evaluate(async text => app.vault.modify(app.vault.getFileByPath("Smoke.md"), text), markdown);
-  await page.waitForFunction(() => document.querySelector(".marglow-file-tools")?.textContent === "Reading notes · 2");
+  await page.waitForFunction(() => document.querySelector(".marglow-file-tools > button:last-child")?.textContent === "Reading notes · 2");
   await highlightCount(2);
   passed("Relocation after earlier source insertion");
 
   markdown = markdown.replace("important sentence", "changed source");
   await page.evaluate(async text => app.vault.modify(app.vault.getFileByPath("Smoke.md"), text), markdown);
-  await page.waitForFunction(() => document.querySelector(".marglow-file-tools")?.textContent.includes("2 unlocated"));
+  await page.waitForFunction(() => document.querySelector(".marglow-file-tools > button:last-child")?.textContent.includes("2 unlocated"));
   await page.evaluate(() => app.commands.executeCommandById("marglow:reassociate-annotation"));
   await page.locator(".suggestion-item").first().click();
   await selectStrong();
@@ -146,15 +164,28 @@ try {
   passed("Unlocated preservation and manual reassociation");
 
   await page.evaluate(async id => app.vault.process(app.vault.getFileByPath("Smoke.md.annotations.md"), text => text.replace(new RegExp(`%% oa:annotation:start ${id} %%[\\s\\S]*?%% oa:annotation:end ${id} %%`), "")), ids[1]);
-  await page.waitForFunction(() => document.querySelector(".marglow-file-tools")?.textContent === "Reading notes · 1");
+  await page.waitForFunction(() => document.querySelector(".marglow-file-tools > button:last-child")?.textContent === "Reading notes · 1");
   assert.ok((await noteText()).includes("Handwritten summary."));
   passed("Complete entry deletion and handwritten content preservation");
   await page.screenshot({ path: `${output}/markdown.png` });
   await page.evaluate(async () => app.fileManager.renameFile(app.vault.getFileByPath("Smoke.md"), "Renamed.md"));
   await page.waitForFunction(() => !!app.vault.getFileByPath("Renamed.md.annotations.md"));
-  await page.waitForFunction(() => document.querySelector(".marglow-file-tools")?.textContent === "Reading notes · 1");
+  await page.waitForFunction(() => document.querySelector(".marglow-file-tools > button:last-child")?.textContent === "Reading notes · 1");
   assert.ok((await page.evaluate(async () => app.vault.read(app.vault.getFileByPath("Renamed.md.annotations.md")))).includes(`^${ids[0]}`));
   passed("Native source rename and companion association preservation");
+  await pageTools.getByRole("button", { name: "Choose pink", exact: true }).click();
+  await pageTools.getByRole("button", { name: "Highlight", exact: true }).click();
+  await selectStrong();
+  await page.waitForFunction(async () => (await app.vault.read(app.vault.getFileByPath("Renamed.md.annotations.md"))).includes('"color":"pink"'));
+  await pageTools.getByRole("button", { name: "Highlight", exact: true }).click();
+  assert.equal(await pageTools.getByRole("button", { name: "Highlight", exact: true }).getAttribute("aria-pressed"), "false");
+  await pageTools.getByRole("button", { name: "Comment", exact: true }).click();
+  await selectStrong(7);
+  await page.getByRole("textbox", { name: "Comment", exact: true }).fill("Comment from the page toolbar.");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.waitForFunction(async () => (await app.vault.read(app.vault.getFileByPath("Renamed.md.annotations.md"))).includes("Comment from the page toolbar."));
+  await page.screenshot({ path: `${output}/page-toolbar-dark.png` });
+  passed("Page toolbar highlight mode and comment-before-selection workflow");
 
   await page.evaluate(async () => app.workspace.getLeaf(false).openFile(app.vault.getFileByPath("Smoke.pdf")));
   await page.waitForFunction(() => document.querySelectorAll(".textLayer span").length >= 4);

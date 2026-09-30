@@ -8,6 +8,23 @@ export interface Actions {
   cancelRelocate?(): void;
 }
 
+const SWATCHES: Record<Color, string> = { yellow: "#f6cd53", green: "#72c890", blue: "#79b7ed", pink: "#e997b7" };
+
+export function colorButton(parent: HTMLElement, color: Color, action: () => void | Promise<void>, label = `Highlight ${color}`): HTMLButtonElement {
+  const button = parent.ownerDocument.createElement("button");
+  button.type = "button";
+  button.className = `marglow-color marglow-${color}`;
+  button.title = label;
+  button.setAttribute("aria-label", label);
+  const dot = parent.ownerDocument.createElement("span");
+  dot.className = "marglow-color-dot";
+  dot.style.backgroundColor = SWATCHES[color];
+  button.append(dot);
+  button.addEventListener("click", () => { void action(); });
+  parent.append(button);
+  return button;
+}
+
 export class AnnotationUI {
   private element: HTMLElement | null = null;
   private saveDraft: (() => Promise<void>) | null = null;
@@ -32,6 +49,12 @@ export class AnnotationUI {
   get hasDraft(): boolean { return this.saveDraft !== null; }
   get isBusy(): boolean { return this.busy; }
 
+  showComment(selection: CapturedSelection, actions: Actions, annotation?: Annotation): void {
+    if (this.hasDraft || this.busy) return;
+    this.rect = selection.rect;
+    this.composer(actions, annotation);
+  }
+
   show(selection: CapturedSelection, actions: Actions, annotation?: Annotation): void {
     if (this.hasDraft || this.busy) return;
     this.close();
@@ -39,10 +62,7 @@ export class AnnotationUI {
     const panel = this.panel("marglow-toolbar");
     panel.setAttribute("role", "toolbar");
     for (const color of COLORS) {
-      const button = this.button(panel, "", () => this.run(() => actions.highlight(color)));
-      button.className = `marglow-color marglow-${color}`;
-      button.setAttribute("aria-label", `Highlight ${color}`);
-      button.title = `Highlight ${color}`;
+      colorButton(panel, color, () => this.run(() => actions.highlight(color)));
     }
     this.button(panel, annotation?.comment ? "Edit comment" : "Comment", () => this.composer(actions, annotation));
     if (actions.delete) this.button(panel, "Delete", () => this.run(actions.delete!));
@@ -90,10 +110,7 @@ export class AnnotationUI {
       const palette = this.document.createElement("div");
       palette.className = "marglow-composer-actions";
       for (const color of COLORS) {
-        const colorButton = this.button(palette, "", () => this.run(() => actions.highlight(color, input.value)));
-        colorButton.className = `marglow-color marglow-${color}`;
-        colorButton.setAttribute("aria-label", `Highlight ${color}`);
-        colorButton.title = `Highlight ${color}`;
+        colorButton(palette, color, () => this.run(() => actions.highlight(color, input.value)));
       }
       panel.append(palette);
     }
