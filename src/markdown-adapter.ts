@@ -49,8 +49,7 @@ export class MarkdownAdapter implements DocumentAdapter {
     const currentAnchor = textAnchor(this.canonical.text, position, position + quote.length);
     const visible = findText(index.text, quote, currentAnchor);
     if (visible === null) return [];
-    const range = index.range(visible, visible + quote.length);
-    return range ? [...range.getClientRects()].filter(rect => rect.width > 0 && rect.height > 0) : [];
+    return index.rects(visible, visible + quote.length);
   }
 
   async scrollTo(annotation: Annotation): Promise<boolean> {

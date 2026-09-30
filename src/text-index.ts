@@ -58,6 +58,39 @@ export class TextIndex {
     return end > start ? { start, end } : null;
   }
 
+  rects(start: number, end: number): DOMRect[] {
+    const spans = new Map<Text, { start: number; end: number }>();
+    for (const point of this.points.slice(start, end)) {
+      if (!point) continue;
+      const span = spans.get(point.node);
+      if (span) span.end = point.end;
+      else spans.set(point.node, { start: point.start, end: point.end });
+    }
+    const rects: DOMRect[] = [];
+    for (const [node, span] of spans) {
+      const range = this.root.ownerDocument.createRange();
+      range.setStart(node, span.start); range.setEnd(node, span.end);
+      // Whole-element ranges return both inline boxes and glyph boxes. Text-node
+      // ranges only contribute selected text, including partial styled runs.
+      for (const rect of range.getClientRects()) {
+        if (rect.width <= 0 || rect.height <= 0) continue;
+        let merged = new DOMRect(rect.left, rect.top, rect.width, rect.height);
+        for (let index = rects.length - 1; index >= 0; index--) {
+          const existing = rects[index]!;
+          const sameLine = Math.abs(existing.top - merged.top) < 0.5 && Math.abs(existing.bottom - merged.bottom) < 0.5;
+          if (!sameLine || existing.right < merged.left - 0.5 || merged.right < existing.left - 0.5) continue;
+          const left = Math.min(existing.left, merged.left), right = Math.max(existing.right, merged.right);
+          const top = Math.min(existing.top, merged.top), bottom = Math.max(existing.bottom, merged.bottom);
+          merged = new DOMRect(left, top, right - left, bottom - top);
+          rects.splice(index, 1);
+          index = rects.length; // Recheck earlier fragments after the union expands.
+        }
+        rects.push(merged);
+      }
+    }
+    return rects.sort((a, b) => a.top - b.top || a.left - b.left);
+  }
+
   range(start: number, end: number): Range | null {
     let first = this.points[start];
     let last = this.points[end - 1];

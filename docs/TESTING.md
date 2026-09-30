@@ -5,7 +5,7 @@ Use a dedicated Vault with synthetic Markdown and PDF material. Never run these 
 ## Current verification
 
 - Automated checks cover Markdown round trips, direct edits, deletion, local-update preservation, stale-write rejection, malformed files, duplicate IDs, source association, text anchoring, PDF page transforms, cross-page selection, and composer persistence failures.
-- Mac smoke checks use actual Obsidian 1.8.10 with a private test profile. The 25 checks exercise visible round color swatches in light/dark themes, persistent page tools, active/hover distinction, native right-sidebar tabs, document switching and focus association, Markdown/PDF persistence, source updates, per-frame PDF scroll alignment, zoom/rotation geometry, and plugin reloads.
+- Mac smoke checks use actual Obsidian 1.8.10 with a private test profile. The 26 checks exercise visible round color swatches in light/dark themes, persistent page tools, active/hover distinction, native right-sidebar tabs, document switching and focus association, Markdown/PDF persistence, source updates, per-frame PDF scroll alignment, zoom/rotation geometry, plugin reloads, and nonduplicated highlight/underline geometry across italic, linked, and nested styled text.
 - iOS physical-device selection, native menus, keyboard placement, and reopening remain unverified until the checklist below is run on a device. A desktop viewport or DOM test is not an iOS acceptance test.
 
 Run `npm run check`, `npm run package`, and, on Mac, `npm run smoke:mac`. The smoke script creates isolated fixtures and checks source-byte preservation before it exits. Inspect its screenshots in the printed local output directory.
@@ -24,7 +24,7 @@ Run `npm run check`, `npm run package`, and, on Mac, `npm run smoke:mac`. The sm
 - [ ] Save each highlight color and a multiline comment; dismissing the composer saves, while cancel discards the pending change.
 - [ ] On Mac, check `Cmd + Enter` and `Esc`. On iOS, check touch save/cancel controls and native selection handles.
 - [ ] Check the composer while the iOS keyboard opens, closes, and changes height; the input and actions stay reachable.
-- [ ] Select text across emphasis, links, paragraphs, lists, and table cells.
+- [ ] Select text across emphasis, links, paragraphs, lists, and table cells. Check partial selections, nested formatting, and wrapped lines: each annotation draws each text region once.
 - [ ] Reselect the same range: edit its existing annotation rather than creating a duplicate.
 - [ ] Create a smaller overlapping annotation and choose each entry from the overlap list.
 - [ ] Save a PDF selection spanning two loaded pages. Check every selected page, not only the first.

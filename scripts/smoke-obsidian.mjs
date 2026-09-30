@@ -509,6 +509,55 @@ try {
   assert.deepEqual(await readFile(`${vault}/Long.pdf`), longPdf);
   passed("PDF sidebar navigation loads and aligns a previously unrendered distant page");
 
+  const styledText = "# Styled selections\n\nPrefix *italic text* followed by [a link](https://example.com), **bold with _nested italic_** and a normal ending.\n";
+  await closeSidebar();
+  await page.evaluate(async text => {
+    await app.vault.create("Styled.md", text);
+    await app.workspace.getLeaf(false).openFile(app.vault.getFileByPath("Styled.md"), { state: { mode: "preview" } });
+  }, styledText);
+  await page.waitForFunction(() => [...app.plugins.plugins.marglow.mounted.values()].some(mount => mount.session.source.path === "Styled.md"));
+  const selectStyled = () => page.evaluate(() => {
+    const paragraph = document.querySelector('.markdown-preview-view .el-p p');
+    const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT), nodes = [];
+    let node; while ((node = walker.nextNode())) nodes.push(node);
+    const range = document.createRange(); range.setStart(nodes[0], 0); range.setEnd(nodes.at(-1), nodes.at(-1).length);
+    getSelection().removeAllRanges(); getSelection().addRange(range);
+    const rects = [...range.getClientRects()].filter(rect => rect.width && rect.height);
+    return rects.some((rect, index) => rects.slice(index + 1).some(other => Math.min(rect.right, other.right) - Math.max(rect.left, other.left) > 1 && Math.min(rect.bottom, other.bottom) - Math.max(rect.top, other.top) > 1));
+  });
+  assert.equal(await selectStyled(), true, "Fixture must reproduce duplicate whole-range inline boxes");
+  await page.getByRole("button", { name: "Highlight yellow", exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('.marglow-file-tools > button:last-child')?.textContent === "Reading notes · 1");
+  await selectStyled();
+  await pageTools.getByRole("button", { name: "Underline", exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('.marglow-file-tools > button:last-child')?.textContent === "Reading notes · 2");
+  const coverage = await page.evaluate(() => {
+    const root = document.querySelector('.markdown-preview-view'), session = [...app.plugins.plugins.marglow.mounted.values()].find(mount => mount.session.source.path === "Styled.md").session;
+    const groups = session.entries.map(entry => {
+      const overlays = [...document.querySelectorAll(`.marglow-highlight[data-annotation-id="${entry.annotation.id}"]`)].map(node => node.getBoundingClientRect());
+      const overlap = overlays.some((rect, index) => overlays.slice(index + 1).some(other => Math.min(rect.right, other.right) - Math.max(rect.left, other.left) > 0.5 && Math.min(rect.bottom, other.bottom) - Math.max(rect.top, other.top) > 0.5));
+      return { style: entry.annotation.style, overlap, rects: overlays.length, quote: entry.annotation.quote };
+    });
+    const walker = document.createTreeWalker(root.querySelector('.el-p p'), NodeFilter.SHOW_TEXT);
+    let node, uncovered = 0;
+    while ((node = walker.nextNode())) {
+      const range = document.createRange(); range.selectNodeContents(node);
+      for (const rect of range.getClientRects()) {
+        if (!rect.width || !rect.height) continue;
+        for (const entry of session.entries) {
+          const overlays = [...document.querySelectorAll(`.marglow-highlight[data-annotation-id="${entry.annotation.id}"]`)].map(element => element.getBoundingClientRect());
+          if (!overlays.some(box => box.left <= rect.left + 1 && box.right >= rect.right - 1 && box.top <= rect.top + 1 && box.bottom >= rect.bottom - 1)) uncovered++;
+        }
+      }
+    }
+    return { groups, uncovered };
+  });
+  assert.equal(coverage.groups.length, 2);
+  assert.ok(coverage.groups.every(group => !group.overlap && group.quote.includes("nested italic")));
+  assert.equal(coverage.uncovered, 0, "Styled text must remain fully covered in both styles");
+  await page.screenshot({ path: `${output}/styled-selection-geometry.png` });
+  assert.equal(await readFile(`${vault}/Styled.md`, "utf8"), styledText);
+  passed("Italic/link/nested styled selections draw each region once for highlight and underline");
   assert.equal(await readFile(`${vault}/Renamed.md`, "utf8"), markdown);
   assert.deepEqual(await readFile(`${vault}/Smoke.pdf`), pdf);
   assert.deepEqual(errors, []);
