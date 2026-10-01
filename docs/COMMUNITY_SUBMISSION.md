@@ -1,6 +1,6 @@
 # Community submission preparation
 
-Prepared on 2026-09-30; updated on 2026-10-01 for **0.2.3 — Public beta 4** and the maintainer-reported iOS test pass. This document does not assert acceptance into the community directory.
+Prepared on 2026-09-30; updated on 2026-10-01 for **0.2.3 — Public beta 4** and the maintainer-reported iOS test pass. The maintainer confirmed official community review approval on 2026-10-01.
 
 ## Submission details
 
@@ -17,7 +17,7 @@ Prepared on 2026-09-30; updated on 2026-10-01 for **0.2.3 — Public beta 4** an
 | License | MIT |
 | Release | https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.3 |
 
-The current official process is the [Obsidian Community directory submission flow](https://docs.obsidian.md/Plugins/Releasing/Submit%20your%20plugin). It requires an Obsidian account, linked GitHub account, repository ownership verification, and the author's agreement to developer policies and continued maintenance. No community submission or policy agreement has been made by this preparation task.
+The current official process is the [Obsidian Community directory submission flow](https://docs.obsidian.md/Plugins/Releasing/Submit%20your%20plugin). It requires an Obsidian account, linked GitHub account, repository ownership verification, and the author's agreement to developer policies and continued maintenance. The maintainer submitted the plugin and confirmed official review approval on 2026-10-01.
 
 ## Prepared repository material
 
@@ -42,7 +42,7 @@ The current official process is the [Obsidian Community directory submission flo
 - No runtime networking, telemetry, ads, paid access, external accounts, or access outside the Vault. Existing sync tools handle transport and conflicts; Marglow has no sync subsystem.
 - Reads and local entry updates preserve original source files and unrelated companion-note content. Malformed/ambiguous files stop unsafe writes.
 
-## Author's final submission steps
+## Submission workflow (completed by the maintainer)
 
 1. Include the recorded Mac and maintainer-reported iOS verification results; record device/app versions in future device runs and address any new blocking failures.
 2. Sign in at https://community.obsidian.md and connect the repository owner's GitHub account.
@@ -66,4 +66,4 @@ A phone toolbar inset issue and cross-device PDF geometry issue reported by the 
 
 ## Release visibility correction (2026-10-01)
 
-The community submission reported "No release matches your manifest version" despite matching `0.2.3` manifest and tag. The release was marked prerelease, and GitHub's latest-release endpoint returned 404. The prerelease flag was removed without changing the version, tag, title, or assets. Request a new scan in the community directory; directory acceptance remains unconfirmed until its review completes.
+The community submission reported "No release matches your manifest version" despite matching `0.2.3` manifest and tag. The release was marked prerelease, and GitHub's latest-release endpoint returned 404. The prerelease flag was removed without changing the version, tag, title, or assets. Request a new scan in the community directory; the maintainer subsequently confirmed official review approval on 2026-10-01.

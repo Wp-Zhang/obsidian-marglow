@@ -10,7 +10,7 @@ The name combines **margin** and **glow**.
 
 ## Status
 
-**0.2.3 is a public beta**, available from [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.3). Tested on Mac and iOS, including physical iOS device testing. It is not yet listed in Obsidian Community Plugins.
+**0.2.3 is a public beta**, available from [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.3). Tested on Mac and iOS, including physical iOS device testing. Marglow has passed the official Obsidian Community Plugins review.
 
 ## Features
 
@@ -36,6 +36,13 @@ The name combines **margin** and **glow**.
 ## Installation
 
 Requires **Obsidian 1.8.10 or later**. Mac and iOS are the supported platforms for this beta.
+
+### Community Plugins (recommended)
+
+1. Open **Settings → Community plugins → Browse**.
+2. Search for **Marglow**, then select **Install** and **Enable**.
+
+The same steps work on Mac and iOS. If Marglow is not visible yet, refresh the plugin list after the directory updates.
 
 ### Manual installation
 

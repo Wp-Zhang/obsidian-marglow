@@ -10,7 +10,7 @@
 
 ## 当前状态
 
-**0.2.3 是 public beta**，可从 [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.3) 安装。已通过 Mac 和 iOS 真机测试。尚未上架 Obsidian 社区插件目录。
+**0.2.3 是 public beta**，可从 [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.3) 安装。已通过 Mac 和 iOS 真机测试。已通过 Obsidian 社区插件官方审核。
 
 ## 功能
 
@@ -36,6 +36,13 @@
 ## 安装
 
 需要 **Obsidian 1.8.10 或以上**。本 beta 支持 Mac 和 iOS。
+
+### 社区插件安装（推荐）
+
+1. 打开“设置 → 第三方插件 → 浏览”。
+2. 搜索 **Marglow**，点击“安装”并启用。
+
+Mac 和 iOS 使用相同的步骤。如暂时搜不到，请待目录更新后刷新插件列表。
 
 ### 手动安装
 
