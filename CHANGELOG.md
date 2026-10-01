@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.3 — Public beta 4 (2026-10-01)
+
+- Let the native Comments sidebar inherit the theme background, including transparent themes.
+- Replace header separators and card borders with spacing and annotation color accents.
+- Show the document name above a subdued folder path and simplify the empty state.
+- Refresh Markdown/PDF screenshots and streamline English and Chinese usage guides.
+- Record the maintainer-confirmed physical iOS test pass, separately from automated and emulation checks.
+
 ## 0.2.2 — Public beta 3 (2026-09-30)
 
 - Attach phone Markdown annotation tools directly below native floating navigation.

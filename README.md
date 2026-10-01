@@ -10,7 +10,7 @@ The name combines **margin** and **glow**.
 
 ## Status
 
-**0.2.2 is a public beta**, available from [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.2). Tested on Mac and iOS, including physical iOS device testing. It is not yet listed in Obsidian Community Plugins.
+**0.2.3 is a public beta**, available from [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.3). Tested on Mac and iOS, including physical iOS device testing. It is not yet listed in Obsidian Community Plugins.
 
 ## Features
 
@@ -39,7 +39,7 @@ Requires **Obsidian 1.8.10 or later**. Mac and iOS are the supported platforms f
 
 ### Manual installation
 
-1. Download `marglow-0.2.2.zip` from the [release page](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.2) and extract it.
+1. Download `marglow-0.2.3.zip` from the [release page](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.3) and extract it.
 2. Copy `main.js`, `manifest.json`, and `styles.css` from the extracted `marglow/` folder into `<vault>/.obsidian/plugins/marglow/`.
 3. Reload Obsidian and enable **Marglow** under **Settings → Community plugins**.
 
@@ -47,7 +47,7 @@ On iOS, transfer the same three files to your Vault’s plugin directory using y
 
 ### BRAT
 
-With [BRAT](https://github.com/TfTHacker/obsidian42-brat), add `Wp-Zhang/obsidian-marglow` and allow prerelease versions, or select `0.2.2` explicitly.
+With [BRAT](https://github.com/TfTHacker/obsidian42-brat), add `Wp-Zhang/obsidian-marglow` and allow prerelease versions, or select `0.2.3` explicitly.
 
 Start in a test Vault. Report problems through [GitHub Issues](https://github.com/Wp-Zhang/obsidian-marglow/issues/new/choose), including app/plugin versions, device, reproduction steps, and a sample with private content removed.
 

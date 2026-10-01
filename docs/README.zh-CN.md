@@ -10,7 +10,7 @@
 
 ## 当前状态
 
-**0.2.2 是 public beta**，可从 [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.2) 安装。已通过 Mac 和 iOS 真机测试。尚未上架 Obsidian 社区插件目录。
+**0.2.3 是 public beta**，可从 [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.3) 安装。已通过 Mac 和 iOS 真机测试。尚未上架 Obsidian 社区插件目录。
 
 ## 功能
 
@@ -39,7 +39,7 @@
 
 ### 手动安装
 
-1. 从 [发布页](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.2) 下载并解压 `marglow-0.2.2.zip`。
+1. 从 [发布页](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.3) 下载并解压 `marglow-0.2.3.zip`。
 2. 将解压后的 `marglow/` 中的 `main.js`、`manifest.json` 和 `styles.css` 放入 `<vault>/.obsidian/plugins/marglow/`。
 3. 重载 Obsidian，在“设置 → 第三方插件”中启用 **Marglow**。
 
@@ -47,7 +47,7 @@ iOS 使用相同的三个文件，通过文件管理或同步方式放入 Vault 
 
 ### BRAT
 
-使用 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 时，添加仓库 `Wp-Zhang/obsidian-marglow`，允许预发布版本，或明确选择 `0.2.2`。
+使用 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 时，添加仓库 `Wp-Zhang/obsidian-marglow`，允许预发布版本，或明确选择 `0.2.3`。
 
 首次体验请使用测试 Vault。发现问题请在 [GitHub Issues](https://github.com/Wp-Zhang/obsidian-marglow/issues/new/choose) 提供应用及插件版本、设备、复现步骤和去除隐私信息的示例。
 
