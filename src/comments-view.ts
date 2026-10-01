@@ -23,10 +23,22 @@ export class CommentsView extends ItemView {
     if (session) {
       const source = this.contentEl.ownerDocument.createElement("div");
       source.className = "marglow-comments-source";
-      source.textContent = session.source.path;
+      source.title = session.source.path;
+      const split = session.source.path.lastIndexOf("/");
+      const name = this.contentEl.ownerDocument.createElement("div");
+      name.className = "marglow-comments-source-name";
+      name.textContent = session.source.path.slice(split + 1);
+      source.append(name);
+      if (split >= 0) {
+        const folder = this.contentEl.ownerDocument.createElement("div");
+        folder.className = "marglow-comments-source-folder";
+        folder.textContent = session.source.path.slice(0, split);
+        source.append(folder);
+      }
       this.contentEl.append(source, session.sidebarElement);
     } else {
       const empty = this.contentEl.ownerDocument.createElement("p");
+      empty.className = "marglow-comments-idle";
       empty.textContent = "Open a Markdown document in Reading view or a PDF to see its annotations.";
       this.contentEl.append(empty);
     }

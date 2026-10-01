@@ -31,10 +31,15 @@ export class AnnotationSidebar {
     this.signature = signature;
     this.cards.clear(); this.list.replaceChildren();
     const document = this.element.ownerDocument;
-    if (error || !annotations.length) {
+    if (error) {
       const status = document.createElement("p"); status.className = "marglow-sidebar-status";
-      status.textContent = error ? "Reading note needs repair. Use the Open reading notes command to review its file; annotations cannot be edited safely yet." : "No annotations yet. Select text to highlight or comment.";
+      status.textContent = "Reading note needs repair. Use the Open reading notes command to review its file; annotations cannot be edited safely yet.";
       this.list.append(status);
+    } else if (!annotations.length) {
+      const empty = document.createElement("div"); empty.className = "marglow-sidebar-empty";
+      const title = document.createElement("strong"); title.textContent = "No annotations yet";
+      const hint = document.createElement("p"); hint.textContent = "Select text to highlight, underline, or comment.";
+      empty.append(title, hint); this.list.append(empty);
     }
     for (const annotation of annotations) {
       const card = document.createElement("article");
