@@ -1,6 +1,6 @@
 # Community submission preparation
 
-Prepared on 2026-09-30; updated on 2026-10-01 for **0.2.4 — Public beta 5** and the maintainer-reported iOS test pass. The maintainer confirmed official community review approval on 2026-10-01.
+Prepared on 2026-09-30; updated on 2026-10-01 for **0.2.5 — Public beta 6** and the maintainer-reported iOS test pass. The maintainer confirmed official community review approval on 2026-10-01.
 
 ## Submission details
 
@@ -11,11 +11,11 @@ Prepared on 2026-09-30; updated on 2026-10-01 for **0.2.4 — Public beta 5** an
 | Name | Marglow |
 | Author | Weipeng Zhang |
 | Description | Highlight and comment on Markdown and PDF, with editable local Markdown reading notes. |
-| Release tag / manifest version | `0.2.4` |
+| Release tag / manifest version | `0.2.5` |
 | Minimum app version | `1.8.10` |
 | Desktop only | false; maintainer confirmed physical iOS testing passed on 2026-10-01 |
 | License | MIT |
-| Release | https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.4 |
+| Release | https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.5 |
 
 The current official process is the [Obsidian Community directory submission flow](https://docs.obsidian.md/Plugins/Releasing/Submit%20your%20plugin). It requires an Obsidian account, linked GitHub account, repository ownership verification, and the author's agreement to developer policies and continued maintenance. The maintainer submitted the plugin and confirmed official review approval on 2026-10-01.
 
@@ -32,7 +32,7 @@ The current official process is the [Obsidian Community directory submission flo
 ## Verification and review notes
 
 - Type check passed; 76 automated tests passed.
-- 28 checks passed in actual Obsidian 1.8.10 using an isolated Mac test Vault, including source-byte preservation and reload cleanup.
+- 29 checks passed in actual Obsidian 1.8.10 using an isolated Mac test Vault, including source-byte preservation and reload cleanup.
 - Release metadata, built files, archive, and absence of Node/Electron runtime dependencies validated by `npm run verify:release`.
 - Release 0.2.4 was built and published by the tagged Release workflow. All four downloaded assets passed `gh attestation verify` with the repository, signer workflow, source tag, and source commit constrained. The three plugin files match the locally tested build, and the ZIP contains those exact files.
 - Official `eslint-plugin-obsidianmd` recommended configuration: **0 errors, 3 warnings**. Two native element-creation warnings and one HTML parsing advisory remain inside the Markdown adapter’s inert, windowless template document. This preserves section structure and embedded-content exclusions without creating active-document nodes; tests verify that scripts do not run and index nodes do not enter the live DOM.
@@ -63,7 +63,7 @@ No legacy `obsidian-releases` pull request is prepared: the current official sub
 
 ## Mobile follow-up
 
-A phone toolbar inset issue and cross-device PDF geometry issue reported by the user were addressed. Desktop 1.13.7 native mobile emulation and Playwright WebKit 26.6 checks passed. A copied problematic PDF and reading note were tested without changing their bytes. The latest public beta is 0.2.4. The maintainer confirmed physical iOS testing passed on 2026-10-01.
+A phone toolbar inset issue and cross-device PDF geometry issue reported by the user were addressed. Desktop 1.13.7 native mobile emulation and Playwright WebKit 26.6 checks passed. A copied problematic PDF and reading note were tested without changing their bytes. The latest public beta is 0.2.5. The maintainer confirmed physical iOS testing passed on 2026-10-01.
 
 ## Release visibility correction (2026-10-01)
 

@@ -1,7 +1,7 @@
 {
   "id": "marglow",
   "name": "Marglow",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "minAppVersion": "1.8.10",
   "description": "Highlight and comment on Markdown and PDF, with editable local Markdown reading notes.",
   "author": "Weipeng Zhang",

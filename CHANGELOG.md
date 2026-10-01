@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.5 — Public beta 6 (2026-10-01)
+
+- Make Reading notes toggle the native Comments sidebar without opening it automatically when an annotation is clicked.
+- Use floating tools for existing annotations while Comments is hidden; select and reveal the corresponding card without a popup while it is visible.
+- Let the toolbar recolor the selected annotation in sidebar mode and keep overlapping entries selectable there.
+- Keep inline comment editing in the sidebar without navigating away or hiding the mobile drawer.
+- Refresh Markdown/PDF README screenshots and add native integration checks for both presentation modes.
+
 ## 0.2.4 — Public beta 5 (2026-10-01)
 
 - Build tagged releases in GitHub Actions, attest the exact plugin files and ZIP, and publish those files together.

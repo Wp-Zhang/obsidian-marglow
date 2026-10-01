@@ -13,7 +13,8 @@ export interface SessionCallbacks {
   reassociate(this: void, selection: CapturedSelection): Promise<void>;
   cancelReassociation(this: void): void;
   onUiClosed(this: void): void;
-  openComments(this: void, session: AnnotationSession): Promise<void>;
+  toggleComments(this: void, session: AnnotationSession): Promise<void>;
+  isCommentsVisible(this: void, session: AnnotationSession): boolean;
   revealSource(this: void): Promise<void>;
   isActive(this: void): boolean;
 }
@@ -74,6 +75,16 @@ export class AnnotationSession {
         this.updatePageTools();
         const selection = this.currentSelection();
         if (selection) await this.pageAction(selection, this.preferredStyle);
+        else if (this.callbacks.isCommentsVisible(this) && !this.pageBusy && !this.error) {
+          const entry = this.entries.find(entry => entry.annotation.id === this.activeId);
+          if (!entry) return;
+          this.pageBusy = true;
+          try {
+            await this.store.save(this.source, { ...entry.annotation, color, updatedAt: new Date().toISOString() }, entry.raw);
+            await this.refresh();
+          } catch (error) { callbacks.report(error instanceof Error ? error.message : String(error)); }
+          finally { this.pageBusy = false; }
+        }
       }, `Choose ${color}`);
     }
     this.pageHighlight = document.win.createEl("button");
@@ -98,7 +109,7 @@ export class AnnotationSession {
     this.notesButton.className = "marglow-notes-button";
     this.notesButton.type = "button";
     this.notesButton.textContent = "Reading notes";
-    this.notesButton.addEventListener("click", () => { void callbacks.openComments(this).catch(error => callbacks.report(String(error))); });
+    this.notesButton.addEventListener("click", () => { void callbacks.toggleComments(this).catch(error => callbacks.report(String(error))); });
     this.tools.append(this.notesButton);
     this.updatePageTools();
     root.classList.add("marglow-source");
@@ -140,7 +151,13 @@ export class AnnotationSession {
       const hits = this.hits(event.clientX, event.clientY);
       if (!hits.length) this.emphasize(null, null);
       if (hits.length === 1) this.open(hits[0]!.annotation, new DOMRect(event.clientX, event.clientY, 1, 1));
-      else if (hits.length > 1) this.ui.choose(new DOMRect(event.clientX, event.clientY, 1, 1), hits.map(hit => hit.annotation), annotation => this.open(annotation, new DOMRect(event.clientX, event.clientY, 1, 1)));
+      else if (hits.length > 1) {
+        const rect = new DOMRect(event.clientX, event.clientY, 1, 1);
+        if (this.callbacks.isCommentsVisible(this)) {
+          // All overlapping entries remain selectable in the sidebar.
+          this.open(hits.find(hit => hit.annotation.id === this.activeId)?.annotation ?? hits[0]!.annotation, rect);
+        } else this.ui.choose(rect, hits.map(hit => hit.annotation), annotation => this.open(annotation, rect));
+      }
     }, { signal });
     root.addEventListener("pointermove", event => {
       if (this.pointerActive || (event.target as Element).closest(".marglow-ui")) return;
@@ -186,6 +203,9 @@ export class AnnotationSession {
       }
       const existing = this.entries.find(entry => (entry.annotation.style ?? "highlight") === this.preferredStyle && this.adapter.matches(entry.annotation, captured));
       if (this.toolMode) { void this.pageAction(captured, this.toolMode); return; }
+      if (existing && this.callbacks.isCommentsVisible(this)) {
+        this.open(existing.annotation, captured.rect); return;
+      }
       this.ui.show(captured, this.actions(captured, existing), existing?.annotation);
       this.render();
     } catch (error) {
@@ -236,10 +256,13 @@ export class AnnotationSession {
   private open(annotation: Annotation, rect: DOMRect): void {
     const entry = this.entries.find(entry => entry.annotation.id === annotation.id);
     if (!entry || this.error) return;
+    this.preview = null;
+    this.emphasize(annotation.id, this.hoveredId, true);
+    if (this.callbacks.isCommentsVisible(this)) {
+      this.ui.close();
+      return;
+    }
     this.ui.show({ quote: annotation.quote, anchor: annotation.anchor, rect }, this.actions({ quote: annotation.quote, anchor: annotation.anchor, rect }, entry), annotation);
-    void this.callbacks.openComments(this).then(() => {
-      if (!this.disposed && !this.suspended && this.activeId === annotation.id) this.sidebar.emphasize(this.activeId, this.hoveredId, true);
-    });
   }
 
   private currentSelection(): CapturedSelection | null {
@@ -277,7 +300,8 @@ export class AnnotationSession {
     if (mode === "comment") {
       this.toolMode = null;
       this.updatePageTools();
-      this.ui.showComment(selection, actions, entry?.annotation);
+      const host = entry && this.callbacks.isCommentsVisible(this) ? this.sidebar.editorHost(entry.annotation.id) : undefined;
+      this.ui.showComment(selection, actions, entry?.annotation, host);
       this.render();
       return;
     }
@@ -392,7 +416,7 @@ export class AnnotationSession {
       count.className = "marglow-notes-count"; count.textContent = String(this.entries.length);
       count.setAttribute("aria-hidden", "true"); this.notesButton.append(count);
     } else this.notesButton.textContent = label;
-    this.notesButton.title = this.unlocated.size ? "Show annotations in the sidebar; use Reassociate an annotation for unlocated entries." : "Show reading notes in the right sidebar";
+    this.syncSidebarVisibility();
   }
 
   private hits(x: number, y: number): LocatedAnnotation[] {
@@ -412,6 +436,13 @@ export class AnnotationSession {
 
   get sidebarElement(): HTMLElement { return this.sidebar.element; }
 
+  syncSidebarVisibility(reveal = false): void {
+    const visible = this.callbacks.isCommentsVisible(this);
+    this.notesButton.setAttribute("aria-expanded", String(visible));
+    this.notesButton.title = visible ? "Hide reading notes" : "Show reading notes";
+    if (visible && reveal) this.sidebar.emphasize(this.activeId, this.hoveredId, true);
+  }
+
   private async selectFromSidebar(annotation: Annotation, edit: boolean): Promise<void> {
     if (!await this.ui.finish() || this.disposed || this.suspended || this.error) return;
     const entry = this.entries.find(entry => entry.annotation.id === annotation.id);
@@ -419,17 +450,19 @@ export class AnnotationSession {
     this.preview = null;
     this.adapter.root.ownerDocument.getSelection()?.removeAllRanges();
     this.emphasize(annotation.id, this.hoveredId, true);
+    if (edit) {
+      const host = this.sidebar.editorHost(annotation.id);
+      const selection = { quote: entry.annotation.quote, anchor: entry.annotation.anchor, rect: (host ?? this.sidebar.element).getBoundingClientRect() };
+      this.ui.showComment(selection, this.actions(selection, entry), entry.annotation, host);
+      return;
+    }
     const token = ++this.navigation;
     await this.callbacks.revealSource();
     const navigated = await this.adapter.scrollTo?.(entry.annotation) ?? false;
     if (this.disposed || this.suspended || token !== this.navigation) return;
     this.render();
-    const rect = this.located.find(item => item.annotation.id === annotation.id)?.rects[0];
     if (!navigated) this.callbacks.report(this.unlocated.has(annotation.id) ? "This annotation is unlocated. Reassociate it from Reading notes." : "The document viewer could not load this annotation location. Reopen the source and try again.");
-    if (edit) {
-      const selection = { quote: entry.annotation.quote, anchor: entry.annotation.anchor, rect: rect ?? this.sidebar.element.getBoundingClientRect() };
-      this.ui.showComment(selection, this.actions(selection, entry), entry.annotation, this.sidebar.editorHost(annotation.id));
-    }
+
   }
 
   dispose(): void {

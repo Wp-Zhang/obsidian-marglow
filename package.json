@@ -1,6 +1,6 @@
 {
   "name": "obsidian-marglow",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "private": true,
   "type": "module",
   "description": "Local-first Markdown and PDF highlights and comments for Obsidian.",

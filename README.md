@@ -10,7 +10,7 @@ The name combines **margin** and **glow**.
 
 ## Status
 
-**0.2.4 is a public beta**, available from [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.4). Tested on Mac and iOS, including physical iOS device testing. Marglow has passed the official Obsidian Community Plugins review.
+**0.2.5 is a public beta**, available from [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.5). Tested on Mac and iOS, including physical iOS device testing. Marglow has passed the official Obsidian Community Plugins review.
 
 ## Features
 
@@ -46,7 +46,7 @@ The same steps work on Mac and iOS. If Marglow is not visible yet, refresh the p
 
 ### Manual installation
 
-1. Download `marglow-0.2.4.zip` from the [release page](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.4) and extract it.
+1. Download `marglow-0.2.5.zip` from the [release page](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.5) and extract it.
 2. Copy `main.js`, `manifest.json`, and `styles.css` from the extracted `marglow/` folder into `<vault>/.obsidian/plugins/marglow/`.
 3. Reload Obsidian and enable **Marglow** under **Settings → Community plugins**.
 
@@ -54,7 +54,7 @@ On iOS, transfer the same three files to your Vault’s plugin directory using y
 
 ### BRAT
 
-With [BRAT](https://github.com/TfTHacker/obsidian42-brat), add `Wp-Zhang/obsidian-marglow` or select `0.2.4` explicitly.
+With [BRAT](https://github.com/TfTHacker/obsidian42-brat), add `Wp-Zhang/obsidian-marglow` or select `0.2.5` explicitly.
 
 Start in a test Vault. Report problems through [GitHub Issues](https://github.com/Wp-Zhang/obsidian-marglow/issues/new/choose), including app/plugin versions, device, reproduction steps, and a sample with private content removed.
 
@@ -63,8 +63,8 @@ Start in a test Vault. Report problems through [GitHub Issues](https://github.co
 1. Open a Markdown note in **Reading view** or a PDF with selectable text.
 2. Select text and choose a color for a highlight, or use the Underline or Comment tool. You can also activate a toolbar tool before selecting text; click the active tool again to turn it off.
 3. Write a comment and save, or click/tap outside to save automatically. Cancel discards the current unsaved edit. On Mac, use `Cmd + Enter` to save and `Esc` to cancel.
-4. Click an annotation to change its color, edit its comment, or delete it. For overlapping annotations, choose the entry you want to edit.
-5. Click **Reading notes** (an icon with a count on mobile) to open the native **Comments** sidebar. Click a quote to jump to its annotation; click comment text to edit it in the card. Clicking an annotation also reveals its sidebar card.
+4. Click an existing annotation to select it. With the sidebar hidden, its floating tools let you edit it. With the sidebar visible, its matching card is selected and scrolled into view without a popup; edit the comment in its card or change the selected annotation’s color using the toolbar. Choose overlapping entries in the sidebar, or in the floating picker when the sidebar is hidden.
+5. Click **Reading notes** (an icon with a count on mobile) to toggle the native **Comments** sidebar. Clicking annotations does not open it automatically. Click a sidebar quote to jump to the source, or comment text to edit in place.
 
 Delete a selected annotation with `Delete`, `Backspace`, or Mac `Cmd + Delete`, or use its trash icon. Deleting an annotation removes both its mark and comment; clearing only the comment keeps the mark. Text inputs retain normal editing shortcuts. Unsaved comments remain available if saving fails.
 

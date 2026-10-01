@@ -10,7 +10,7 @@
 
 ## 当前状态
 
-**0.2.4 是 public beta**，可从 [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.4) 安装。已通过 Mac 和 iOS 真机测试。已通过 Obsidian 社区插件官方审核。
+**0.2.5 是 public beta**，可从 [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.5) 安装。已通过 Mac 和 iOS 真机测试。已通过 Obsidian 社区插件官方审核。
 
 ## 功能
 
@@ -46,7 +46,7 @@ Mac 和 iOS 使用相同的步骤。如暂时搜不到，请待目录更新后�
 
 ### 手动安装
 
-1. 从 [发布页](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.4) 下载并解压 `marglow-0.2.4.zip`。
+1. 从 [发布页](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.5) 下载并解压 `marglow-0.2.5.zip`。
 2. 将解压后的 `marglow/` 中的 `main.js`、`manifest.json` 和 `styles.css` 放入 `<vault>/.obsidian/plugins/marglow/`。
 3. 重载 Obsidian，在“设置 → 第三方插件”中启用 **Marglow**。
 
@@ -54,7 +54,7 @@ iOS 使用相同的三个文件，通过文件管理或同步方式放入 Vault 
 
 ### BRAT
 
-使用 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 时，添加仓库 `Wp-Zhang/obsidian-marglow`，或明确选择 `0.2.4`。
+使用 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 时，添加仓库 `Wp-Zhang/obsidian-marglow`，或明确选择 `0.2.5`。
 
 首次体验请使用测试 Vault。发现问题请在 [GitHub Issues](https://github.com/Wp-Zhang/obsidian-marglow/issues/new/choose) 提供应用及插件版本、设备、复现步骤和去除隐私信息的示例。
 
@@ -63,8 +63,8 @@ iOS 使用相同的三个文件，通过文件管理或同步方式放入 Vault 
 1. 在**阅读视图**打开 Markdown，或打开文字可选的 PDF。
 2. 选择文本后点击颜色添加高亮，或使用下划线、评论工具。也可以先开启工具栏中的工具再选择文本；再次点击已开启的工具即可关闭。
 3. 输入评论并保存，或点击／轻触外部自动保存。取消会放弃本次未保存修改。Mac 支持 `Cmd + Enter` 保存、`Esc` 取消。
-4. 点击标注可修改颜色、编辑评论或删除。重叠区域会提供条目选择列表。
-5. 点击 **Reading notes**（移动端为图标加数量）展开原生 **Comments** 侧栏。点击引用跳转到正文标注，直接点击评论文字在卡片内编辑；点击正文标注也会定位对应卡片。
+4. 点击已有标注将其选中。侧栏隐藏时，通过浮动工具编辑；侧栏可见时，仅选中并滚动到对应卡片，不弹出浮窗。可在卡片内编辑评论，或用顶部颜色按钮修改选中标注的颜色。重叠条目在侧栏中选择；侧栏隐藏时使用浮动选择列表。
+5. 点击 **Reading notes**（移动端为图标加数量）开关原生 **Comments** 侧栏，点击标注不会自动展开侧栏。点击侧栏引用跳转到原文，直接点击评论文字在卡片内编辑。
 
 选中的标注可用 `Delete`、`Backspace`、Mac `Cmd + Delete` 或垃圾桶图标删除。删除标注会同时移除标记和评论；仅清空评论会保留标记。输入框中的快捷键仍按正常文字编辑处理。保存失败时保留未保存的评论。
 

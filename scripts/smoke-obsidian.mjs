@@ -158,6 +158,16 @@ try {
   await page.waitForFunction(() => [...app.plugins.plugins.marglow.mounted.values()].some(mount => mount.session.entries.some(entry => entry.annotation.comment === "Direct edit.")));
   await page.waitForFunction(ids => ids.every(id => app.metadataCache.getFileCache(app.vault.getFileByPath("_marglow/Smoke.md.annotations.md"))?.blocks?.[id]), ids);
   passed("Direct Markdown edit and native block IDs");
+  const clickExistingMark = async () => {
+    const text = page.locator('.markdown-preview-view strong').first();
+    await text.waitFor({ state: "visible" });
+    const rect = await text.boundingBox(); assert.ok(rect);
+    await text.click({ position: { x: rect.width - 2, y: rect.height / 2 } });
+  };
+  await clickExistingMark();
+  await page.locator("body > .marglow-composer").waitFor();
+  assert.equal(await page.evaluate(() => app.workspace.getLeavesOfType('marglow-comments').length), 0);
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
   const mainLeavesBeforeNotes = await page.evaluate(() => app.workspace.getLeavesOfType('markdown').length + app.workspace.getLeavesOfType('pdf').length);
   assert.equal(await pageTools.getByRole("button", { name: "Comments", exact: true }).count(), 0);
   await pageTools.getByRole("button", { name: /^Reading notes/ }).click();
@@ -166,6 +176,31 @@ try {
   await sidebar.waitFor({ state: "visible" });
   assert.equal(await sidebar.getByRole("button", { name: "Close", exact: true }).count(), 0);
   assert.equal(await sidebar.locator("time").count(), 2);
+  assert.equal(await pageTools.getByRole("button", { name: /^Reading notes/ }).getAttribute("aria-expanded"), "true");
+  await clickExistingMark();
+  const overlappingText = page.locator('.markdown-preview-view strong').first();
+  const overlappingRect = await overlappingText.boundingBox();
+  await overlappingText.click({ position: { x: 2, y: overlappingRect.height / 2 } });
+  assert.equal(await page.locator("body > .marglow-choices").count(), 0);
+  assert.equal(await page.locator("body > .marglow-composer, body > .marglow-toolbar").count(), 0);
+  assert.equal(await sidebar.locator(`.marglow-comment-card[data-annotation-id="${ids[0]}"].is-active`).count(), 1);
+  await pageTools.getByRole("button", { name: "Choose blue", exact: true }).click();
+  await page.waitForFunction(id => document.querySelector(`.marglow-comment-card[data-annotation-id="${id}"]`)?.classList.contains('marglow-blue'), ids[0]);
+  assert.equal(await page.locator('body > .marglow-composer').count(), 0);
+  assert.ok((await noteText()).includes(`^${ids[0]}`));
+  await pageTools.getByRole("button", { name: "Choose green", exact: true }).click();
+  await page.waitForFunction(id => document.querySelector(`.marglow-comment-card[data-annotation-id="${id}"]`)?.classList.contains('marglow-green'), ids[0]);
+  await pageTools.getByRole("button", { name: /^Reading notes/ }).click();
+  await sidebar.waitFor({ state: "hidden" });
+  assert.equal(await page.evaluate(() => app.workspace.getLeavesOfType('marglow-comments').length), 1);
+  await clickExistingMark();
+  await page.locator("body > .marglow-composer").waitFor();
+  assert.equal(await sidebar.isHidden(), true);
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await pageTools.getByRole("button", { name: /^Reading notes/ }).click();
+  await sidebar.waitFor({ state: "visible" });
+  passed("Reading notes toggles the sidebar; existing marks use either popup or card without auto-opening");
+
   const card = sidebar.locator('.marglow-comment-card').filter({ hasText: "Direct edit." });
   await card.getByRole("button", { name: /^Go to annotation:/ }).click();
   await page.waitForFunction(id => [...document.querySelectorAll('.marglow-highlight.is-active')].every(node => node.dataset.annotationId === id) && document.querySelectorAll('.marglow-highlight.is-active').length > 0, ids[0]);
@@ -317,6 +352,19 @@ try {
   assert.equal(await page.locator('.marglow-highlight.is-active').count(), 3);
   await pdfCard.hover();
   assert.equal(await page.locator('.marglow-highlight.is-hovered').count(), 3);
+  const clickPdfMark = async () => {
+    await page.locator('.page[data-page-number="1"] .textLayer span').first().click();
+  };
+  await clickPdfMark();
+  assert.equal(await page.locator("body > .marglow-toolbar, body > .marglow-composer").count(), 0);
+  await pageTools.getByRole("button", { name: /^Reading notes/ }).click();
+  await sidebar.waitFor({ state: "hidden" });
+  await clickPdfMark();
+  await page.locator("body > .marglow-toolbar, body > .marglow-composer").first().waitFor();
+  assert.equal(await sidebar.isHidden(), true);
+  await page.keyboard.press("Escape");
+  await pageTools.getByRole("button", { name: /^Reading notes/ }).click();
+  await sidebar.waitFor({ state: "visible" });
   await page.screenshot({ path: `${output}/pdf-comments-sidebar.png` });
   await closeSidebar();
   passed("PDF sidebar navigation and cross-page selection/hover emphasis");
@@ -499,7 +547,7 @@ try {
   await page.waitForFunction(() => document.querySelectorAll('.marglow-comment-card').length === 27);
   await sidebar.locator('.marglow-comment-list').evaluate(element => { element.scrollTop = element.scrollHeight; });
   await clickHighlight();
-  await page.locator('.marglow-choices button').first().click();
+  assert.equal(await page.locator('body > .marglow-choices, body > .marglow-toolbar, body > .marglow-composer').count(), 0);
   await page.waitForFunction(id => {
     const card = document.querySelector(`.marglow-comment-card[data-annotation-id="${id}"]`), list = document.querySelector('.marglow-comment-list');
     if (!card || !list) return false;

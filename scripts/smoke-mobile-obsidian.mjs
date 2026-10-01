@@ -130,6 +130,33 @@ try {
   await page.screenshot({path:`${output}/mobile-toolbar.png`});
   await page.getByRole('button',{name:/^Reading notes/}).click();
   await page.getByRole('complementary',{name:'Annotation comments'}).waitFor();
+  await page.evaluate(async()=>{
+    const plugin=app.plugins.plugins.marglow;
+    const session=[...plugin.mounted.values()].find(m=>m.session.source.path==='Smoke.md').session;
+    const node=session.adapter.root.querySelector('strong').firstChild;
+    const range=document.createRange();range.selectNodeContents(node);
+    const selection=getSelection();selection.removeAllRanges();selection.addRange(range);
+    const captured=session.adapter.capture(selection);selection.removeAllRanges();
+    const id='ann-mobile-toggle',time=new Date().toISOString();
+    await plugin.store.save(session.source,{id,blockId:id,color:'green',quote:captured.quote,anchor:captured.anchor,comment:'Mobile sidebar comment.',createdAt:time,updatedAt:time});
+    await session.refresh();
+  });
+  const mobileSidebar=page.getByRole('complementary',{name:'Annotation comments'});
+  await mobileSidebar.getByRole('button',{name:/^Edit comment:/}).click();
+  await mobileSidebar.locator('.marglow-inline-composer textarea').waitFor();
+  assert.equal(await mobileSidebar.isVisible(),true);
+  assert.equal(await page.locator('body > .marglow-composer').count(),0);
+  await mobileSidebar.getByRole('button',{name:'Cancel',exact:true}).click();
+  await page.evaluate(()=>app.workspace.rightSplit.collapse());
+  await mobileSidebar.waitFor({state:'hidden'});
+  await page.evaluate(()=>document.querySelector('.markdown-preview-view').scrollTop=0);
+  await page.locator('.markdown-preview-view strong').first().click();
+  await page.locator('body > .marglow-composer').waitFor();
+  assert.equal(await mobileSidebar.isHidden(),true);
+  await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await page.getByRole('button',{name:/^Reading notes/}).click();
+  await mobileSidebar.waitFor({state:'visible'});
+  console.log('PASS Native mobile drawer keeps inline editing visible and uses popup while closed');
   console.log('PASS Native mobile emulation, reachable toolbar, scroll stability and sidebar:',await page.title());
 
   await page.screenshot({path:`${output}/mobile-emulation.png`});

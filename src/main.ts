@@ -153,7 +153,8 @@ export default class MarglowPlugin extends Plugin {
               const active = this.app.workspace.getActiveViewOfType(View);
               return active === view || (active?.getViewType() === COMMENTS_VIEW && this.commentsSource === view);
             },
-            openComments: session => this.openComments(session).catch(error => this.report(String(error))),
+            toggleComments: session => this.toggleComments(session),
+            isCommentsVisible: session => this.commentsVisible(session),
             revealSource: () => this.app.workspace.revealLeaf(view.leaf),
             report: message => this.report(message),
             cancelReassociation: () => { this.pending = null; },
@@ -191,11 +192,36 @@ export default class MarglowPlugin extends Plugin {
     for (const leaf of this.app.workspace.getLeavesOfType(COMMENTS_VIEW)) {
       if (leaf.view instanceof CommentsView) leaf.view.setSession(session);
     }
+    for (const mounted of this.mounted.values()) mounted.session.syncSidebarVisibility();
+  }
+
+  private commentsVisible(session: AnnotationSession): boolean {
+    return this.app.workspace.getLeavesOfType(COMMENTS_VIEW).some(leaf => {
+      const root = leaf.getRoot();
+      if (root === this.app.workspace.rightSplit && this.app.workspace.rightSplit.collapsed) return false;
+      if (root === this.app.workspace.leftSplit && this.app.workspace.leftSplit.collapsed) return false;
+      return leaf.view instanceof CommentsView && leaf.view.contentEl.contains(session.sidebarElement) && leaf.view.containerEl.isShown();
+    });
+  }
+
+  private async toggleComments(session: AnnotationSession): Promise<void> {
+    if (!await session.ui.finish()) return;
+    if (!this.commentsVisible(session)) { await this.openComments(session); return; }
+    const leaf = this.app.workspace.getLeavesOfType(COMMENTS_VIEW).find(leaf => leaf.view instanceof CommentsView && leaf.view.contentEl.contains(session.sidebarElement));
+    if (!leaf) return;
+    const root = leaf.getRoot();
+    if (root === this.app.workspace.rightSplit) this.app.workspace.rightSplit.collapse();
+    else if (root === this.app.workspace.leftSplit) this.app.workspace.leftSplit.collapse();
+    else leaf.detach();
+    const source = [...this.mounted].find(([, mounted]) => mounted.session === session)?.[0];
+    if (source) await this.app.workspace.revealLeaf(source.leaf);
+    session.syncSidebarVisibility();
   }
 
   private async openComments(session?: AnnotationSession): Promise<void> {
     const active = this.app.workspace.getActiveViewOfType(View);
     const target = session ?? (active?.getViewType() === COMMENTS_VIEW ? (this.commentsSource ? this.mounted.get(this.commentsSource)?.session : undefined) : (active ? this.mounted.get(active)?.session : undefined));
+    if (target && !await target.ui.finish()) return;
     if (target) this.commentsSource = [...this.mounted].find(([, mounted]) => mounted.session === target)?.[0] ?? null;
     const existing = this.app.workspace.getLeavesOfType(COMMENTS_VIEW)[0];
     const leaf = existing ?? this.app.workspace.getRightLeaf(false);
@@ -205,6 +231,7 @@ export default class MarglowPlugin extends Plugin {
       leaf.view.setSession(target ?? null);
     }
     await this.app.workspace.revealLeaf(leaf);
+    target?.syncSidebarVisibility(true);
   }
 
   private async sourceForCurrentFile(): Promise<Source | null> {
