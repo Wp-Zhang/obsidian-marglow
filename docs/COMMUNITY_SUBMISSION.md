@@ -34,6 +34,7 @@ The current official process is the [Obsidian Community directory submission flo
 - Type check passed; 76 automated tests passed.
 - 28 checks passed in actual Obsidian 1.8.10 using an isolated Mac test Vault, including source-byte preservation and reload cleanup.
 - Release metadata, built files, archive, and absence of Node/Electron runtime dependencies validated by `npm run verify:release`.
+- Release 0.2.4 was built and published by the tagged Release workflow. All four downloaded assets passed `gh attestation verify` with the repository, signer workflow, source tag, and source commit constrained. The three plugin files match the locally tested build, and the ZIP contains those exact files.
 - Official `eslint-plugin-obsidianmd` recommended configuration: **0 errors, 3 warnings**. Two native element-creation warnings and one HTML parsing advisory remain inside the Markdown adapter’s inert, windowless template document. This preserves section structure and embedded-content exclusions without creating active-document nodes; tests verify that scripts do not run and index nodes do not enter the live DOM.
 - UI uses owner-document browser DOM creation to preserve document/window ownership and keep isolated tests independent of host DOM extensions.
 - Virtual Markdown section HTML is read into an inert template only, never mounted or executed. A narrowly explained `no-unsanitized/property` exception covers this native-viewer index; the official HTML advisory remains visible for review. Icon creation uses explicit SVG DOM nodes.
