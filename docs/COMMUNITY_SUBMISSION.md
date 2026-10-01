@@ -23,7 +23,7 @@ The current official process is the [Obsidian Community directory submission flo
 
 - Root MIT `LICENSE`, readable source, manifest, and versions map.
 - English README and equivalent Chinese README with installation, capabilities, screenshots, and known limits.
-- A GitHub prerelease with numeric tag matching the manifest, and individually downloadable `main.js`, `manifest.json`, `styles.css`, plus the installation ZIP.
+- A published non-prerelease GitHub release with a numeric tag matching the manifest, and individually downloadable `main.js`, `manifest.json`, `styles.css`, plus the installation ZIP.
 - Changelog and an issue template for beta feedback.
 - CI type checking, official recommended Obsidian lint rules, unit tests, packaging, and release consistency validation.
 - Local design and test Vaults remain under ignored `dev/`. They are not published.
@@ -48,7 +48,7 @@ The current official process is the [Obsidian Community directory submission flo
 2. Sign in at https://community.obsidian.md and connect the repository owner's GitHub account.
 3. Choose **Plugins → New plugin**, supply the repository URL above, and select the owner.
 4. Review the [developer policies](https://docs.obsidian.md/community-directory/developer-policies), [submission requirements](https://docs.obsidian.md/community-directory/submission-requirements-for-plugins), and maintenance commitment before agreeing and submitting.
-5. Read the directory's automated review results and resolve blockers. If its installation/review flow requires a stable release, publish a tested non-prerelease with a new matching numeric version rather than relabeling this beta as stable without verification.
+5. Read the directory's automated review results and resolve blockers. The directory did not recognize 0.2.3 while its GitHub release was marked prerelease. That flag was removed for distribution; the release remains labeled Public beta, with the same verified tag and assets.
 
 No legacy `obsidian-releases` pull request is prepared: the current official submission guide routes new entries through the community website.
 
@@ -57,9 +57,13 @@ No legacy `obsidian-releases` pull request is prepared: the current official sub
 1. Update `manifest.json`, `package.json`, lockfile, `versions.json`, changelog, and both READMEs.
 2. Run `npm ci`, `npm run check`, `npm run package`, `npm run verify:release`, and affected Mac/device checks.
 3. Commit and push; tag that exact commit with the numeric manifest version (no `v` prefix).
-4. Attach the three built plugin files separately to a GitHub release with that tag, optionally adding the ZIP. Mark beta releases as prereleases.
+4. Attach the three built plugin files separately to a GitHub release with that tag, optionally adding the ZIP. For community distribution, publish a non-prerelease release. A Public beta title can still describe product maturity; reserve GitHub prereleases for BRAT-only testing.
 5. Download the published files and compare their hashes with the locally verified build.
 
 ## Mobile follow-up
 
 A phone toolbar inset issue and cross-device PDF geometry issue reported by the user were addressed. Desktop 1.13.7 native mobile emulation and Playwright WebKit 26.6 checks passed. A copied problematic PDF and reading note were tested without changing their bytes. The latest public beta is 0.2.3. The maintainer confirmed physical iOS testing passed on 2026-10-01.
+
+## Release visibility correction (2026-10-01)
+
+The community submission reported "No release matches your manifest version" despite matching `0.2.3` manifest and tag. The release was marked prerelease, and GitHub's latest-release endpoint returned 404. The prerelease flag was removed without changing the version, tag, title, or assets. Request a new scan in the community directory; directory acceptance remains unconfirmed until its review completes.

@@ -47,7 +47,7 @@ iOS 使用相同的三个文件，通过文件管理或同步方式放入 Vault 
 
 ### BRAT
 
-使用 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 时，添加仓库 `Wp-Zhang/obsidian-marglow`，允许预发布版本，或明确选择 `0.2.3`。
+使用 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 时，添加仓库 `Wp-Zhang/obsidian-marglow`，或明确选择 `0.2.3`。
 
 首次体验请使用测试 Vault。发现问题请在 [GitHub Issues](https://github.com/Wp-Zhang/obsidian-marglow/issues/new/choose) 提供应用及插件版本、设备、复现步骤和去除隐私信息的示例。
 

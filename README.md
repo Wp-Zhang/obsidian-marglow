@@ -47,7 +47,7 @@ On iOS, transfer the same three files to your Vault’s plugin directory using y
 
 ### BRAT
 
-With [BRAT](https://github.com/TfTHacker/obsidian42-brat), add `Wp-Zhang/obsidian-marglow` and allow prerelease versions, or select `0.2.3` explicitly.
+With [BRAT](https://github.com/TfTHacker/obsidian42-brat), add `Wp-Zhang/obsidian-marglow` or select `0.2.3` explicitly.
 
 Start in a test Vault. Report problems through [GitHub Issues](https://github.com/Wp-Zhang/obsidian-marglow/issues/new/choose), including app/plugin versions, device, reproduction steps, and a sample with private content removed.
 
