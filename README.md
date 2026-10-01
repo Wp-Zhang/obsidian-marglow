@@ -10,7 +10,7 @@ The name combines **margin** and **glow**.
 
 ## Status
 
-**0.2.3 is a public beta**, available from [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.3). Tested on Mac and iOS, including physical iOS device testing. Marglow has passed the official Obsidian Community Plugins review.
+**0.2.4 is a public beta**, available from [GitHub Releases](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.4). Tested on Mac and iOS, including physical iOS device testing. Marglow has passed the official Obsidian Community Plugins review.
 
 ## Features
 
@@ -46,7 +46,7 @@ The same steps work on Mac and iOS. If Marglow is not visible yet, refresh the p
 
 ### Manual installation
 
-1. Download `marglow-0.2.3.zip` from the [release page](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.3) and extract it.
+1. Download `marglow-0.2.4.zip` from the [release page](https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.4) and extract it.
 2. Copy `main.js`, `manifest.json`, and `styles.css` from the extracted `marglow/` folder into `<vault>/.obsidian/plugins/marglow/`.
 3. Reload Obsidian and enable **Marglow** under **Settings → Community plugins**.
 
@@ -54,7 +54,7 @@ On iOS, transfer the same three files to your Vault’s plugin directory using y
 
 ### BRAT
 
-With [BRAT](https://github.com/TfTHacker/obsidian42-brat), add `Wp-Zhang/obsidian-marglow` or select `0.2.3` explicitly.
+With [BRAT](https://github.com/TfTHacker/obsidian42-brat), add `Wp-Zhang/obsidian-marglow` or select `0.2.4` explicitly.
 
 Start in a test Vault. Report problems through [GitHub Issues](https://github.com/Wp-Zhang/obsidian-marglow/issues/new/choose), including app/plugin versions, device, reproduction steps, and a sample with private content removed.
 
@@ -128,6 +128,8 @@ npm run package      # Installable files in dist/marglow/
 ```
 
 Install the contents of `dist/marglow/` in a dedicated test Vault using the manual installation steps above. `npm run dev` watches and rebuilds during development.
+
+Numeric version tags trigger GitHub Actions to build, attest, and publish release files. ZIP downloads are for manual installation; Obsidian downloads the three plugin files.
 
 For host integration checks, use `npm run smoke:mac`, `npm run smoke:mobile`, and `npm run smoke:webkit`. See [testing instructions and the device checklist](docs/TESTING.md) for setup and recorded verification, and [AGENTS.md](AGENTS.md) for development principles.
 

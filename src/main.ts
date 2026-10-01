@@ -1,4 +1,4 @@
-import { addIcon, Component, FuzzySuggestModal, MarkdownRenderer, MarkdownView, Notice, Platform, Plugin, type TFile, type View } from "obsidian";
+import { addIcon, Component, FuzzySuggestModal, MarkdownRenderer, MarkdownView, Notice, Platform, Plugin, type TFile, View } from "obsidian";
 import marglowIcon from "../assets/marglow-icon.svg";
 import { AnnotationStore, readingNotePath } from "./store";
 import { isReadingNote, parseReadingNote, type Entry } from "./format";
@@ -138,7 +138,7 @@ export default class MarglowPlugin extends Plugin {
           if (candidate.source.type === "markdown") {
             const source = await this.app.vault.read(candidate.file);
             if (isReadingNote(source)) { this.removeChild(owner); continue; }
-            const rendered = candidate.root.ownerDocument.createElement("div");
+            const rendered = candidate.root.ownerDocument.win.createDiv();
             await MarkdownRenderer.render(this.app, source, rendered, candidate.file.path, owner);
             adapter = new MarkdownAdapter(candidate.root, rendered, (view as MarkdownView).previewMode);
           } else {
@@ -149,7 +149,10 @@ export default class MarglowPlugin extends Plugin {
           }
           if (this.stopped || epoch !== this.epoch || !candidate.root.isConnected) { this.removeChild(owner); continue; }
           const callbacks: SessionCallbacks = {
-            isActive: () => this.app.workspace.activeLeaf?.view === view || (this.app.workspace.activeLeaf?.view.getViewType() === COMMENTS_VIEW && this.commentsSource === view),
+            isActive: () => {
+              const active = this.app.workspace.getActiveViewOfType(View);
+              return active === view || (active?.getViewType() === COMMENTS_VIEW && this.commentsSource === view);
+            },
             openComments: session => this.openComments(session).catch(error => this.report(String(error))),
             revealSource: () => this.app.workspace.revealLeaf(view.leaf),
             report: message => this.report(message),
@@ -180,9 +183,9 @@ export default class MarglowPlugin extends Plugin {
   }
 
   private syncComments(): void {
-    const active = this.app.workspace.activeLeaf?.view;
+    const active = this.app.workspace.getActiveViewOfType(View);
     // Focusing the comments tab must retain its source document association.
-    const root = this.app.workspace.activeLeaf?.getRoot();
+    const root = active?.leaf.getRoot();
     if (active?.getViewType() !== COMMENTS_VIEW && root !== this.app.workspace.rightSplit && root !== this.app.workspace.leftSplit) this.commentsSource = active ?? null;
     const session = this.commentsSource ? this.mounted.get(this.commentsSource)?.session ?? null : null;
     for (const leaf of this.app.workspace.getLeavesOfType(COMMENTS_VIEW)) {
@@ -191,7 +194,7 @@ export default class MarglowPlugin extends Plugin {
   }
 
   private async openComments(session?: AnnotationSession): Promise<void> {
-    const active = this.app.workspace.activeLeaf?.view;
+    const active = this.app.workspace.getActiveViewOfType(View);
     const target = session ?? (active?.getViewType() === COMMENTS_VIEW ? (this.commentsSource ? this.mounted.get(this.commentsSource)?.session : undefined) : (active ? this.mounted.get(active)?.session : undefined));
     if (target) this.commentsSource = [...this.mounted].find(([, mounted]) => mounted.session === target)?.[0] ?? null;
     const existing = this.app.workspace.getLeavesOfType(COMMENTS_VIEW)[0];

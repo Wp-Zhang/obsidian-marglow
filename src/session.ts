@@ -27,7 +27,7 @@ export class AnnotationSession {
   private readingContainer: HTMLElement | null = null;
   private tools: HTMLElement;
   private notesButton: HTMLButtonElement;
-  private abort = new AbortController();
+  private abort: AbortController;
   private observer: MutationObserver;
   private resize: ResizeObserver;
   private frame: number | undefined;
@@ -55,11 +55,12 @@ export class AnnotationSession {
   constructor(readonly source: Source, readonly adapter: DocumentAdapter, private store: AnnotationStore, private mobile: boolean, private callbacks: SessionCallbacks) {
     const root = adapter.root;
     const document = root.ownerDocument;
+    this.abort = new document.win.AbortController();
     this.ui = new AnnotationUI(document, mobile, callbacks.report, () => { this.scheduleRender(); callbacks.onUiClosed(); }, () => this.render());
-    this.overlay = document.createElement("div");
+    this.overlay = document.win.createDiv();
     this.overlay.className = "marglow-overlay";
     this.overlay.setAttribute("aria-hidden", "true");
-    this.tools = document.createElement("div");
+    this.tools = document.win.createDiv();
     this.tools.className = `marglow-ui marglow-file-tools${mobile ? " marglow-mobile" : ""}`;
     this.tools.setAttribute("role", "toolbar");
     this.tools.setAttribute("aria-label", "Page annotation tools");
@@ -75,16 +76,16 @@ export class AnnotationSession {
         if (selection) await this.pageAction(selection, this.preferredStyle);
       }, `Choose ${color}`);
     }
-    this.pageHighlight = document.createElement("button");
+    this.pageHighlight = document.win.createEl("button");
     this.pageHighlight.type = "button";
     this.pageHighlight.setAttribute("aria-label", "Highlight");
     setIcon(this.pageHighlight, "highlighter");
     this.pageHighlight.addEventListener("click", () => this.chooseTool("highlight"));
-    this.pageUnderline = document.createElement("button"); this.pageUnderline.type = "button";
+    this.pageUnderline = document.win.createEl("button"); this.pageUnderline.type = "button";
     this.pageUnderline.setAttribute("aria-label", "Underline"); this.pageUnderline.title = "Underline the selection or activate underline mode";
     setIcon(this.pageUnderline, "underline");
     this.pageUnderline.addEventListener("click", () => this.chooseTool("underline"));
-    this.pageComment = document.createElement("button");
+    this.pageComment = document.win.createEl("button");
     this.pageComment.type = "button";
     this.pageComment.setAttribute("aria-label", "Comment");
     setIcon(this.pageComment, "message-square");
@@ -93,7 +94,7 @@ export class AnnotationSession {
     this.sidebar = new AnnotationSidebar(document, (annotation, edit) => { void this.selectFromSidebar(annotation, edit).catch(error => callbacks.report(error instanceof Error ? error.message : String(error))); }, id => this.emphasize(this.activeId, id), annotation => { void this.removeFromSidebar(annotation); });
     this.ui.navigationContainer = this.sidebar.element;
     this.sidebar.element.classList.toggle("marglow-mobile", mobile);
-    this.notesButton = document.createElement("button");
+    this.notesButton = document.win.createEl("button");
     this.notesButton.className = "marglow-notes-button";
     this.notesButton.type = "button";
     this.notesButton.textContent = "Reading notes";
@@ -344,7 +345,7 @@ export class AnnotationSession {
         const local = overlayRect(rect, host);
         const nodes = layers.get(host) ?? [];
         layers.set(host, nodes);
-        const element = root.ownerDocument.createElement("div");
+        const element = root.ownerDocument.win.createDiv();
         element.className = `marglow-highlight marglow-${annotation.color}${annotation.style === "underline" ? " marglow-underline" : ""}`;
         element.dataset.annotationId = annotation.id;
         element.dataset.comment = String(!!annotation.comment.trim());
@@ -364,7 +365,7 @@ export class AnnotationSession {
     for (const [host, nodes] of layers) {
       let overlay = this.overlays.get(host);
       if (!overlay) {
-        overlay = root.ownerDocument.createElement("div");
+        overlay = root.ownerDocument.win.createDiv();
         overlay.className = "marglow-overlay";
         overlay.setAttribute("aria-hidden", "true");
         host.append(overlay); this.overlays.set(host, overlay);
@@ -387,7 +388,7 @@ export class AnnotationSession {
     this.notesButton.setAttribute("aria-label", label);
     if (this.mobile) {
       this.notesButton.replaceChildren(); setIcon(this.notesButton, "marglow");
-      const count = this.notesButton.ownerDocument.createElement("span");
+      const count = this.notesButton.ownerDocument.win.createSpan();
       count.className = "marglow-notes-count"; count.textContent = String(this.entries.length);
       count.setAttribute("aria-hidden", "true"); this.notesButton.append(count);
     } else this.notesButton.textContent = label;

@@ -12,12 +12,12 @@ export interface Actions {
 const SWATCHES: Record<Color, string> = { yellow: "#f6cd53", green: "#72c890", blue: "#79b7ed", pink: "#e997b7" };
 
 export function colorButton(parent: HTMLElement, color: Color, action: () => void | Promise<void>, label = `Highlight ${color}`): HTMLButtonElement {
-  const button = parent.ownerDocument.createElement("button");
+  const button = parent.ownerDocument.win.createEl("button");
   button.type = "button";
   button.className = `marglow-color marglow-${color}`;
   button.title = label;
   button.setAttribute("aria-label", label);
-  const dot = parent.ownerDocument.createElement("span");
+  const dot = parent.ownerDocument.win.createSpan();
   dot.className = "marglow-color-dot";
   dot.style.backgroundColor = SWATCHES[color];
   button.append(dot);
@@ -31,11 +31,12 @@ export class AnnotationUI {
   private saveDraft: (() => Promise<void>) | null = null;
   private busy = false;
   private rect: DOMRect | null = null;
-  private abort = new AbortController();
+  private abort: AbortController;
   private inlineHost: HTMLElement | null = null;
   navigationContainer: HTMLElement | null = null;
 
   constructor(private document: Document, private mobile: boolean, private report: (message: string) => void, private onClose: () => void = () => {}, private onChange: () => void = () => {}) {
+    this.abort = new document.win.AbortController();
     document.addEventListener("pointerdown", event => {
       if (this.element && !this.element.contains(event.target as Node) && !(this.navigationContainer?.contains(event.target as Node) && (event.target as Element).closest(".marglow-comment-card"))) void this.finish();
     }, { capture: true, signal: this.abort.signal });
@@ -104,10 +105,10 @@ export class AnnotationUI {
     }
     panel.setAttribute("role", "dialog");
     panel.setAttribute("aria-label", annotation ? "Edit annotation comment" : "Add annotation comment");
-    const label = this.document.createElement("label");
+    const label = this.document.win.createEl("label");
     label.className = "marglow-composer-label";
     label.textContent = "Comment";
-    const input = this.document.createElement("textarea");
+    const input = this.document.win.createEl("textarea");
     input.setAttribute("aria-label", "Comment");
     input.placeholder = "Write a thought…";
     input.rows = 4;
@@ -115,14 +116,14 @@ export class AnnotationUI {
     input.value = initial;
     panel.append(label, input);
     if (annotation && !host) {
-      const palette = this.document.createElement("div");
+      const palette = this.document.win.createDiv();
       palette.className = "marglow-composer-actions";
       for (const color of COLORS) {
         colorButton(palette, color, () => this.run(() => actions.highlight(color, input.value)));
       }
       panel.append(palette);
     }
-    const buttons = this.document.createElement("div");
+    const buttons = this.document.win.createDiv();
     buttons.className = "marglow-composer-actions";
     panel.append(buttons);
     const commit = async () => {
@@ -150,7 +151,7 @@ export class AnnotationUI {
   }
 
   private panel(kind: string): HTMLElement {
-    const panel = this.document.createElement("div");
+    const panel = this.document.win.createDiv();
     panel.className = `marglow-ui ${kind}${this.mobile ? " marglow-mobile" : ""}`;
     panel.addEventListener("pointerdown", event => {
       if ((event.target as Element).closest("button")) event.preventDefault();
@@ -161,7 +162,7 @@ export class AnnotationUI {
   }
 
   private button(parent: HTMLElement, text: string, action: () => void | Promise<void>): HTMLButtonElement {
-    const button = this.document.createElement("button");
+    const button = this.document.win.createEl("button");
     button.type = "button";
     button.textContent = text;
     button.addEventListener("click", () => { void action(); });
@@ -181,7 +182,7 @@ export class AnnotationUI {
       this.report(message);
       if (this.element) {
         let errorElement = this.element.querySelector<HTMLElement>(".marglow-error");
-        if (!errorElement) { errorElement = this.document.createElement("p"); errorElement.className = "marglow-error"; this.element.append(errorElement); }
+        if (!errorElement) { errorElement = this.document.win.createEl("p"); errorElement.className = "marglow-error"; this.element.append(errorElement); }
         errorElement.textContent = message;
         errorElement.setAttribute("role", "alert");
       }

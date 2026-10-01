@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.4 — Public beta 5 (2026-10-01)
+
+- Build tagged releases in GitHub Actions, attest the exact plugin files and ZIP, and publish those files together.
+- Replace deprecated active-leaf access while preserving the Comments sidebar's source association.
+- Use Obsidian DOM helpers in the source window for UI and SVG creation.
+- Create event cancellation controllers in the source window, avoiding cross-window signal mismatches.
+- Add regression checks for window ownership and inert Markdown section parsing; retain native creation only in the windowless template document.
+- Keep the optional ZIP for manual installation; Obsidian downloads the three plugin files.
+
 ## 0.2.3 — Public beta 4 (2026-10-01)
 
 - Let the native Comments sidebar inherit the theme background, including transparent themes.

@@ -61,7 +61,9 @@ export class MarkdownAdapter implements DocumentAdapter {
       if (!renderer) return false;
       // Parse inert HTML from the complete native section index. No hidden section
       // is guessed from a percentage or an old offset, and images are not loaded.
-      const template = this.root.ownerDocument.createElement("template");
+      // Keep native creation for template.content's windowless document: host
+      // window helpers would create nodes in an active document instead.
+      const template = this.root.ownerDocument.win.createEl("template");
       const wrappers = new Map<Node, PreviewSection>();
       for (const section of renderer.sections) {
         if (typeof section.html !== "string") continue;

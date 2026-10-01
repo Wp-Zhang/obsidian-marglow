@@ -1,5 +1,5 @@
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  test: { environment: "jsdom", include: ["tests/**/*.test.ts"], restoreMocks: true },
+  test: { setupFiles: ["tests/obsidian-dom.ts"], environment: "jsdom", include: ["tests/**/*.test.ts"], restoreMocks: true },
 });

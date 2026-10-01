@@ -1,6 +1,6 @@
 # Community submission preparation
 
-Prepared on 2026-09-30; updated on 2026-10-01 for **0.2.3 — Public beta 4** and the maintainer-reported iOS test pass. The maintainer confirmed official community review approval on 2026-10-01.
+Prepared on 2026-09-30; updated on 2026-10-01 for **0.2.4 — Public beta 5** and the maintainer-reported iOS test pass. The maintainer confirmed official community review approval on 2026-10-01.
 
 ## Submission details
 
@@ -11,11 +11,11 @@ Prepared on 2026-09-30; updated on 2026-10-01 for **0.2.3 — Public beta 4** an
 | Name | Marglow |
 | Author | Weipeng Zhang |
 | Description | Highlight and comment on Markdown and PDF, with editable local Markdown reading notes. |
-| Release tag / manifest version | `0.2.3` |
+| Release tag / manifest version | `0.2.4` |
 | Minimum app version | `1.8.10` |
 | Desktop only | false; maintainer confirmed physical iOS testing passed on 2026-10-01 |
 | License | MIT |
-| Release | https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.3 |
+| Release | https://github.com/Wp-Zhang/obsidian-marglow/releases/tag/0.2.4 |
 
 The current official process is the [Obsidian Community directory submission flow](https://docs.obsidian.md/Plugins/Releasing/Submit%20your%20plugin). It requires an Obsidian account, linked GitHub account, repository ownership verification, and the author's agreement to developer policies and continued maintenance. The maintainer submitted the plugin and confirmed official review approval on 2026-10-01.
 
@@ -31,10 +31,10 @@ The current official process is the [Obsidian Community directory submission flo
 
 ## Verification and review notes
 
-- Type check passed; 74 automated tests passed.
+- Type check passed; 76 automated tests passed.
 - 28 checks passed in actual Obsidian 1.8.10 using an isolated Mac test Vault, including source-byte preservation and reload cleanup.
 - Release metadata, built files, archive, and absence of Node/Electron runtime dependencies validated by `npm run verify:release`.
-- Official `eslint-plugin-obsidianmd` recommended configuration: **0 errors, 52 warnings**. Warnings consist of 44 preferences for Obsidian DOM helpers, five deprecated API references, two sentence-case suggestions, and one inert-template HTML assignment. They remain visible in `npm run lint`; they are not presented as scanner approval.
+- Official `eslint-plugin-obsidianmd` recommended configuration: **0 errors, 3 warnings**. Two native element-creation warnings and one HTML parsing advisory remain inside the Markdown adapter’s inert, windowless template document. This preserves section structure and embedded-content exclusions without creating active-document nodes; tests verify that scripts do not run and index nodes do not enter the live DOM.
 - UI uses owner-document browser DOM creation to preserve document/window ownership and keep isolated tests independent of host DOM extensions.
 - Virtual Markdown section HTML is read into an inert template only, never mounted or executed. A narrowly explained `no-unsanitized/property` exception covers this native-viewer index; the official HTML advisory remains visible for review. Icon creation uses explicit SVG DOM nodes.
 - PDF and Markdown virtual-section dependencies are isolated in their adapters. Changes in the host can require adaptation. No OCR or editor-mode annotation support is claimed.
@@ -57,12 +57,12 @@ No legacy `obsidian-releases` pull request is prepared: the current official sub
 1. Update `manifest.json`, `package.json`, lockfile, `versions.json`, changelog, and both READMEs.
 2. Run `npm ci`, `npm run check`, `npm run package`, `npm run verify:release`, and affected Mac/device checks.
 3. Commit and push; tag that exact commit with the numeric manifest version (no `v` prefix).
-4. Attach the three built plugin files separately to a GitHub release with that tag, optionally adding the ZIP. For community distribution, publish a non-prerelease release. A Public beta title can still describe product maturity; reserve GitHub prereleases for BRAT-only testing.
+4. The Release workflow checks, builds, and attests the files at that exact tag before uploading the three plugin files and optional ZIP. It publishes a non-prerelease GitHub release for community distribution, retaining the Public beta title. Do not replace attested assets with locally rebuilt files.
 5. Download the published files and compare their hashes with the locally verified build.
 
 ## Mobile follow-up
 
-A phone toolbar inset issue and cross-device PDF geometry issue reported by the user were addressed. Desktop 1.13.7 native mobile emulation and Playwright WebKit 26.6 checks passed. A copied problematic PDF and reading note were tested without changing their bytes. The latest public beta is 0.2.3. The maintainer confirmed physical iOS testing passed on 2026-10-01.
+A phone toolbar inset issue and cross-device PDF geometry issue reported by the user were addressed. Desktop 1.13.7 native mobile emulation and Playwright WebKit 26.6 checks passed. A copied problematic PDF and reading note were tested without changing their bytes. The latest public beta is 0.2.4. The maintainer confirmed physical iOS testing passed on 2026-10-01.
 
 ## Release visibility correction (2026-10-01)
 

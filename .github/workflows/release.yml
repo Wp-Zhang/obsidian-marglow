@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '[0-9]*.[0-9]*.[0-9]*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Check tag and version
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync } from 'node:fs';
+          import assert from 'node:assert/strict';
+          const version = JSON.parse(readFileSync('manifest.json', 'utf8')).version;
+          assert.match(process.env.GITHUB_REF_NAME, /^\d+\.\d+\.\d+$/);
+          assert.equal(process.env.GITHUB_REF_NAME, version);
+          JS
+      - run: npm ci
+      - run: npm run check
+      - run: npm run package
+      - run: npm run verify:release
+      - name: Attest the exact release files
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            dist/marglow/main.js
+            dist/marglow/manifest.json
+            dist/marglow/styles.css
+            dist/marglow-*.zip
+      - name: Extract release notes
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          import assert from 'node:assert/strict';
+          const changelog = readFileSync('CHANGELOG.md', 'utf8');
+          const heading = `## ${process.env.GITHUB_REF_NAME} `;
+          const start = changelog.indexOf(heading);
+          assert.ok(start >= 0, 'Release needs a changelog entry');
+          const end = changelog.indexOf('\n## ', start + heading.length);
+          const notes = changelog.slice(start, end < 0 ? undefined : end);
+          writeFileSync('dist/release-notes.md', notes + '\n\nZIP is provided for manual installation; Obsidian downloads the three plugin files.\n');
+          JS
+      - name: Publish the attested files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/marglow/main.js dist/marglow/manifest.json dist/marglow/styles.css \
+            "dist/marglow-$GITHUB_REF_NAME.zip" \
+            --verify-tag --latest --title "Marglow $GITHUB_REF_NAME — Public beta" \
+            --notes-file dist/release-notes.md
