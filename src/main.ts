@@ -1,12 +1,15 @@
-import { addIcon, Component, FuzzySuggestModal, MarkdownRenderer, MarkdownView, Notice, Platform, Plugin, type TFile, View } from "obsidian";
+import { addIcon, Component, FuzzySuggestModal, MarkdownRenderer, MarkdownView, Notice, Platform, Plugin, requireApiVersion, normalizePath, type TFile, View } from "obsidian";
 import marglowIcon from "../assets/marglow-icon.svg";
-import { AnnotationStore, readingNotePath } from "./store";
+import { AnnotationStore } from "./store";
 import { isReadingNote, parseReadingNote, type Entry } from "./format";
 import { MarkdownAdapter } from "./markdown-adapter";
 import { PdfAdapter } from "./pdf-adapter";
 import { AnnotationSession, type SessionCallbacks } from "./session";
 import { CommentsView, COMMENTS_VIEW } from "./comments-view";
 import type { Source } from "./model";
+import type { Annotation } from "./model";
+import { recordReference, upgradeReadingNote } from "./format-v2";
+import { UpgradeNoteModal, ConfirmNoteRemoval, ReadingHomeModal } from "./note-modals";
 
 interface Mounted {
   session: AnnotationSession;
@@ -34,9 +37,17 @@ class SourcePicker extends FuzzySuggestModal<TFile> {
   onChooseItem(file: TFile): void { this.select(file); }
 }
 
+class MissingRecordPicker extends FuzzySuggestModal<string> {
+  constructor(plugin: MarglowPlugin, private ids: string[], private choose: (id: string) => void) { super(plugin.app); this.setPlaceholder("Choose a record whose body is missing"); }
+  getItems(): string[] { return this.ids; }
+  getItemText(id: string): string { return id; }
+  onChooseItem(id: string): void { this.choose(id); }
+}
+
 export default class MarglowPlugin extends Plugin {
   private sourceRenames = new Set<{ oldPath: string; newPath: string }>();
   private commentsSource: View | null = null;
+  private readingSource: Source | null = null;
   private store!: AnnotationStore;
   private mounted = new Map<View, Mounted>();
   private reconcileTimer: number | undefined;
@@ -51,7 +62,14 @@ export default class MarglowPlugin extends Plugin {
   onload(): void {
     addIcon("marglow", marglowIcon);
     this.store = new AnnotationStore(this.app);
-    this.registerView(COMMENTS_VIEW, leaf => new CommentsView(leaf));
+    this.registerView(COMMENTS_VIEW, leaf => new CommentsView(leaf, {
+      store: this.store, report: message => this.report(message),
+      openNote: source => this.openNote(source), upgrade: source => this.upgradeNote(source),
+      copy: (source, id, thought) => this.copyReference(source, id, thought),
+      navigate: (source, annotation) => this.navigateAnnotation(source, annotation),
+      removeMissing: source => this.reviewMissing(source),
+      hasSource: source => !!this.app.vault.getFileByPath(source.path),
+    }));
     this.addCommand({ id: "open-comments", name: "Open comments sidebar", callback: () => { void this.openComments().catch(error => this.report(String(error))); } });
     const schedule = () => this.schedule();
     this.registerEvent(this.app.workspace.on("layout-change", schedule));
@@ -80,6 +98,25 @@ export default class MarglowPlugin extends Plugin {
       })().catch(error => this.report(error instanceof Error ? error.message : String(error))).finally(() => { this.sourceRenames.delete(operation); this.schedule(); });
     }));
     this.addCommand({ id: "open-reading-note", name: "Open reading notes", callback: () => { void this.openCurrentNote().catch(error => this.report(String(error))); } });
+    this.addCommand({ id: "create-reading-note", name: "Create reading note", callback: () => { void this.createCurrentNote().catch(error => this.report(String(error))); } });
+    this.addCommand({ id: "add-thought", name: "Add whole-material thought", callback: () => { void this.addCurrentThought().catch(error => this.report(String(error))); } });
+    this.addCommand({ id: "upgrade-reading-note", name: "Upgrade reading note format", callback: () => { void this.sourceForCurrentFile().then(source => source ? this.upgradeNote(source) : undefined).catch(error => this.report(String(error))); } });
+    this.addCommand({ id: "review-missing-records", name: "Review missing reading records", callback: () => { void this.reviewMissing().catch(error => this.report(String(error))); } });
+    this.addCommand({ id: "create-reading-home", name: "Create reading home", callback: () => { new ReadingHomeModal(this.app, requireApiVersion("1.9.0"), (path, bases) => this.createReadingHome(path, bases)).open(); } });
+    this.registerEvent(this.app.workspace.on("editor-menu", (menu, editor, info) => {
+      const file = info.file;
+      if (!file || !this.app.metadataCache.getFileCache(file)?.frontmatter?.annotation_schema) return;
+      menu.addItem(item => item.setTitle("Copy record reference").setIcon("link").onClick(() => {
+        void (async () => {
+          const text = await this.app.vault.read(file), note = parseReadingNote(text);
+          const offset = editor.posToOffset(editor.getCursor());
+          const entry = note.entries.find(candidate => candidate.ranges?.some(range => offset >= range.start && offset <= range.end) || (note.version === 1 && offset >= candidate.start && offset <= candidate.end));
+          const thought = note.thoughts.find(candidate => candidate.ranges.some(range => offset >= range.start && offset <= range.end));
+          if (!entry && !thought) throw new Error("Place the cursor inside a saved quotation, comment, or thought first.");
+          await this.copyReference(note.source, entry?.annotation.id ?? thought!.thought.id, !!thought);
+        })().catch(error => this.report(String(error)));
+      }));
+    }));
     this.addCommand({ id: "open-source", name: "Open source document", callback: () => { void this.openSource().catch(error => this.report(String(error))); } });
     this.addCommand({ id: "reassociate-annotation", name: "Reassociate an annotation", callback: () => { void this.pickReassociation().catch(error => this.report(String(error))); } });
     this.addCommand({ id: "cancel-reassociation", name: "Cancel reassociation", callback: () => { this.pending = null; this.report("Reassociation cancelled."); } });
@@ -159,6 +196,7 @@ export default class MarglowPlugin extends Plugin {
             report: message => this.report(message),
             cancelReassociation: () => { this.pending = null; },
             onUiClosed: () => this.schedule(),
+            copyReference: annotation => this.copyReference(candidate.source, annotation.id, false),
             isReassociating: () => this.pending?.source.path === candidate.source.path,
             reassociate: async selection => {
               if (!this.pending || this.pending.source.path !== candidate.source.path) throw new Error("Reassociation was cancelled.");
@@ -176,21 +214,29 @@ export default class MarglowPlugin extends Plugin {
           this.report(error instanceof Error ? error.message : String(error));
         }
       }
-      this.syncComments();
+      await this.syncComments();
     } finally {
       this.running = false;
       if (this.rerun || epoch !== this.epoch) { this.rerun = false; this.schedule(); }
     }
   }
 
-  private syncComments(): void {
+  private async syncComments(): Promise<void> {
     const active = this.app.workspace.getActiveViewOfType(View);
     // Focusing the comments tab must retain its source document association.
     const root = active?.leaf.getRoot();
-    if (active?.getViewType() !== COMMENTS_VIEW && root !== this.app.workspace.rightSplit && root !== this.app.workspace.leftSplit) this.commentsSource = active ?? null;
-    const session = this.commentsSource ? this.mounted.get(this.commentsSource)?.session ?? null : null;
+    if (active?.getViewType() !== COMMENTS_VIEW && root !== this.app.workspace.rightSplit && root !== this.app.workspace.leftSplit) {
+      this.commentsSource = active ?? null;
+      try { this.readingSource = await this.sourceForCurrentFile(); }
+      catch {
+        const file = this.app.workspace.getActiveFile(), metadata = file ? this.app.metadataCache.getFileCache(file)?.frontmatter : null;
+        const link: unknown = metadata?.annotation_source, type: unknown = metadata?.annotation_source_type;
+        this.readingSource = typeof link === "string" && link.startsWith("[[") && link.endsWith("]]") && (type === "markdown" || type === "pdf") ? { path: link.slice(2, -2), type } : null;
+      }
+    }
+    const session = (this.commentsSource ? this.mounted.get(this.commentsSource)?.session : null) ?? [...this.mounted.values()].find(item => item.session.source.path === this.readingSource?.path)?.session ?? null;
     for (const leaf of this.app.workspace.getLeavesOfType(COMMENTS_VIEW)) {
-      if (leaf.view instanceof CommentsView) leaf.view.setSession(session);
+      if (leaf.view instanceof CommentsView) await leaf.view.setContext(this.readingSource, session);
     }
     for (const mounted of this.mounted.values()) mounted.session.syncSidebarVisibility();
   }
@@ -218,23 +264,28 @@ export default class MarglowPlugin extends Plugin {
     session.syncSidebarVisibility();
   }
 
-  private async openComments(session?: AnnotationSession): Promise<void> {
+  private async openComments(session?: AnnotationSession): Promise<CommentsView | null> {
     const active = this.app.workspace.getActiveViewOfType(View);
     const target = session ?? (active?.getViewType() === COMMENTS_VIEW ? (this.commentsSource ? this.mounted.get(this.commentsSource)?.session : undefined) : (active ? this.mounted.get(active)?.session : undefined));
-    if (target && !await target.ui.finish()) return;
+    if (target && !await target.ui.finish()) return null;
     if (target) this.commentsSource = [...this.mounted].find(([, mounted]) => mounted.session === target)?.[0] ?? null;
+    const source = target?.source ?? await this.sourceForCurrentFile() ?? this.readingSource;
+    this.readingSource = source;
     const existing = this.app.workspace.getLeavesOfType(COMMENTS_VIEW)[0];
     const leaf = existing ?? this.app.workspace.getRightLeaf(false);
-    if (!leaf) return;
+    if (!leaf) return null;
     if (!existing) await leaf.setViewState({ type: COMMENTS_VIEW, active: true });
     if (leaf.view instanceof CommentsView) {
-      leaf.view.setSession(target ?? null);
+      if (!await leaf.view.setContext(source, target ?? [...this.mounted.values()].find(item => item.session.source.path === source?.path)?.session ?? null)) return null;
     }
     await this.app.workspace.revealLeaf(leaf);
     target?.syncSidebarVisibility(true);
+    return leaf.view instanceof CommentsView ? leaf.view : null;
   }
 
   private async sourceForCurrentFile(): Promise<Source | null> {
+    const active = this.app.workspace.getActiveViewOfType(View);
+    if (active instanceof CommentsView) return active.panel.context;
     const file = this.app.workspace.getActiveFile();
     if (!file) return null;
     if (file.extension === "pdf") return { path: file.path, type: "pdf" };
@@ -250,10 +301,90 @@ export default class MarglowPlugin extends Plugin {
 
   private async openNote(source: Source): Promise<void> {
     // Opening a damaged default note should remain possible so users can repair it.
-    const defaultFile = this.app.vault.getFileByPath(readingNotePath(source.path)) ?? this.app.vault.getFileByPath(`${source.path}.annotations.md`);
-    const file = defaultFile ?? (await this.store.load(source)).file;
-    if (!file) { this.report("Create a highlight or comment first to start reading notes."); return; }
+    const file = this.store.findFile(source);
+    if (!file) { this.report("Add a thought or annotation, or use Create reading note first."); return; }
     await this.app.workspace.getLeaf("tab").openFile(file);
+  }
+
+  private async createCurrentNote(): Promise<void> {
+    const source = await this.sourceForCurrentFile();
+    if (!source) return;
+    const file = await this.store.create(source);
+    await this.app.workspace.getLeaf("tab").openFile(file);
+  }
+
+  private async createReadingHome(path: string, bases: boolean): Promise<void> {
+    if (!path.trim() || path.startsWith("/") || path.split(/[\\/]/).some(part => part === "..") || !path.endsWith(".md")) throw new Error("Choose a relative Markdown note path inside this Vault.");
+    const normalized = normalizePath(path.trim());
+    if (this.app.vault.getAbstractFileByPath(normalized)) throw new Error("That path is occupied. Choose another name; the existing file will be preserved.");
+    const parent = normalized.includes("/") ? normalized.slice(0, normalized.lastIndexOf("/")) : "";
+    if (parent && !this.app.vault.getAbstractFileByPath(parent)) await this.app.vault.createFolder(parent);
+    const table = '```base\nfilters:\n  and:\n    - "annotation_schema != null"\nformulas:\n  material: "if(marglow_title, marglow_title, file.name)"\nproperties:\n  formula.material:\n    displayName: Material\n  annotation_source:\n    displayName: Source\n  marglow_status:\n    displayName: Status\n  file.mtime:\n    displayName: Modified\nviews:\n  - type: table\n    name: All\n    order: [formula.material, annotation_source, marglow_status, file.mtime]\n  - type: table\n    name: Reading\n    filters: \'marglow_status == "reading"\'\n    order: [formula.material, annotation_source, marglow_status, file.mtime]\n  - type: table\n    name: Read\n    filters: \'marglow_status == "read"\'\n    order: [formula.material, annotation_source, marglow_status, file.mtime]\n```';
+    const query = '```query\n[annotation_schema]\n```';
+    const content = `# Reading\n\nAdd links to your Inbox and current question notes here.\n\n## Reading notes\n\n${bases ? table : query}\n\nModified times describe file edits, not reading dates.\n`;
+    const file = await this.app.vault.create(normalized, content);
+    await this.app.workspace.getLeaf("tab").openFile(file);
+  }
+
+  private async addCurrentThought(): Promise<void> {
+    const view = await this.openComments();
+    await view?.panel.addThought();
+  }
+
+  private async upgradeNote(source: Source): Promise<void> {
+    for (const mounted of this.mounted.values()) if (mounted.session.source.path === source.path && !await mounted.session.ui.finish()) return;
+    for (const leaf of this.app.workspace.getLeavesOfType(COMMENTS_VIEW)) if (leaf.view instanceof CommentsView && leaf.view.panel.context?.path === source.path && !await leaf.view.panel.finish()) return;
+    const { file, note } = await this.store.load(source);
+    if (!file || !note) { this.report("Create a reading note first."); return; }
+    if (note.version === 2) { this.report("This reading note already uses the new format."); return; }
+    const original = await this.app.vault.read(file), converted = upgradeReadingNote(original);
+    new UpgradeNoteModal(this.app, original, converted, note.entries.length, async () => {
+      const backup = await this.store.upgrade(file, original, converted);
+      this.report(`Reading note upgraded. Original backup: ${backup.path}`);
+      for (const mounted of this.mounted.values()) void mounted.session.refresh();
+      this.schedule();
+    }).open();
+  }
+
+  private async copyReference(source: Source, id: string, thought: boolean): Promise<void> {
+    for (const leaf of this.app.workspace.getLeavesOfType(COMMENTS_VIEW)) if (leaf.view instanceof CommentsView && !await leaf.view.panel.finish()) throw new Error("Finish saving the current input before copying a reference.");
+    const { file, note } = await this.store.load(source);
+    const entry = thought ? note?.thoughts.find(item => item.thought.id === id)?.thought : note?.entries.find(item => item.annotation.id === id)?.annotation;
+    if (!file || !note || !entry) throw new Error("This saved record no longer exists. Refresh the reading note.");
+    const reference = recordReference(file.path, note.source, entry);
+    const document = this.app.workspace.getActiveViewOfType(View)?.containerEl.ownerDocument ?? window.document;
+    await document.defaultView!.navigator.clipboard.writeText(reference);
+    this.report("Reference copied. Paste it into your note.");
+  }
+
+  private async navigateAnnotation(source: Source, annotation: Annotation): Promise<void> {
+    const file = this.app.vault.getFileByPath(source.path);
+    if (!file) throw new Error("The source document is missing. The reading record has been retained.");
+    const leaf = this.app.workspace.getLeaf(false);
+    await leaf.openFile(file, { state: { mode: "preview" } });
+    this.schedule();
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const session = this.mounted.get(leaf.view)?.session;
+      if (session) { await session.refresh(); await session.navigateTo(annotation); return; }
+      await new Promise(resolve => window.setTimeout(resolve, 50));
+    }
+    throw new Error("The source view could not load. Reopen it and try again.");
+  }
+
+  private async reviewMissing(source?: Source): Promise<void> {
+    let file = this.app.workspace.getActiveFile();
+    if (!file || file.extension !== "md" || !isReadingNote(await this.app.vault.read(file))) {
+      source ??= await this.sourceForCurrentFile() ?? undefined;
+      if (!source) return;
+      file = this.store.findFile(source);
+      if (!file) throw new Error("Open the reading note file before reviewing missing records.");
+    }
+    const selected = file, note = parseReadingNote(await this.app.vault.read(file), true);
+    if (!note.missing.length) { this.report("There are no missing reading records."); return; }
+    new MissingRecordPicker(this, note.missing.map(item => item.id), id => {
+      const record = note.missing.find(item => item.id === id)!;
+      new ConfirmNoteRemoval(this.app, id, async () => { await this.store.removeMissing(selected, id, record.raw, note.documentId); this.schedule(); }).open();
+    }).open();
   }
 
   private async openSource(): Promise<void> {

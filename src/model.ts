@@ -28,6 +28,7 @@ export type Anchor = MarkdownAnchor | PdfAnchor;
 export interface Annotation {
   id: string;
   blockId: string;
+  commentBlockId?: string;
   color: Color;
   style?: AnnotationStyle;
   quote: string;
@@ -35,6 +36,20 @@ export interface Annotation {
   anchor: Anchor;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Thought {
+  id: string;
+  blockId: string;
+  text: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function createThought(): Thought {
+  const id = newId("thought");
+  const now = new Date().toISOString();
+  return { id, blockId: id, text: "", createdAt: now, updatedAt: now };
 }
 
 export interface Source {

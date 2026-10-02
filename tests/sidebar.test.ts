@@ -84,3 +84,29 @@ it("keeps the inline draft attached while external note content changes", () => 
   sidebar.render([{ ...item, comment: "External edit" }], new Set(), "");
   expect(sidebar.element.textContent).toContain("External edit");
 });
+
+it("omits empty comment content and offers an explicit add action at the bottom", () => {
+  const select = vi.fn(), sidebar = new AnnotationSidebar(document, select, vi.fn(), vi.fn(), vi.fn());
+  const item = { ...annotation(), comment: "   " };
+  sidebar.render([item], new Set(), "");
+  expect(sidebar.element.querySelector('.marglow-comment-text, textarea')).toBeNull();
+  expect(sidebar.element.textContent).not.toContain('no comment');
+  const add = sidebar.element.querySelector<HTMLButtonElement>('.marglow-add-comment')!;
+  expect(add.textContent).toBe('');
+  expect(add.querySelector('svg')).not.toBeNull();
+  expect(add.closest('.marglow-record-actions')).not.toBeNull();
+  expect(add.title).toBe('Add comment');
+  add.click(); expect(select).toHaveBeenCalledWith(item, true);
+  sidebar.render([{ ...item, comment: 'A new comment.' }], new Set(), '');
+  expect(sidebar.element.querySelector('.marglow-add-comment')).toBeNull();
+  expect(sidebar.element.querySelector('.marglow-comment-text')?.textContent).toBe('A new comment.');
+});
+
+it("groups accessible icon actions with the timestamp without large copy text", () => {
+  const copy=vi.fn(), sidebar=new AnnotationSidebar(document,vi.fn(),vi.fn(),vi.fn(),copy), item=annotation();
+  sidebar.render([item],new Set(),'');
+  const footer=sidebar.element.querySelector('.marglow-record-footer')!;
+  const button=footer.querySelector<HTMLButtonElement>('[aria-label="Copy reference"]')!;
+  expect(button.textContent).toBe('');expect(button.querySelector('svg')).not.toBeNull();expect(button.title).toBe('Copy reference');
+  expect(footer.querySelector('time')).not.toBeNull();button.click();expect(copy).toHaveBeenCalledWith(item);
+});

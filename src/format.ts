@@ -1,18 +1,33 @@
-import { COLORS, type Annotation, type Source, newId } from "./model";
+import { COLORS, type Annotation, type Source, type Thought, newId } from "./model";
+import { NoteError } from "./note-error";
+import { createV2Note, parseV2Note, updateV2Entry, deleteV2Entry } from "./format-v2";
 
-export class NoteError extends Error {}
+export { NoteError } from "./note-error";
+
+export interface TextRange { start: number; end: number; raw: string }
 
 export interface Entry {
   annotation: Annotation;
   start: number;
   end: number;
   raw: string;
+  ranges?: TextRange[];
 }
 
+export interface ThoughtEntry { thought: Thought; raw: string; ranges: TextRange[] }
+export interface MissingRecord { id: string; kind: "annotation" | "thought"; raw: string; ranges: TextRange[]; missing: string[] }
+
 export interface ReadingNote {
+  version: 1 | 2;
   source: Source;
   documentId: string;
   entries: Entry[];
+  thoughts: ThoughtEntry[];
+  missing: MissingRecord[];
+  system?: TextRange;
+  title?: string;
+  status?: string;
+  hasFreeNotes?: boolean;
 }
 
 const ID = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,127}$/;
@@ -20,13 +35,39 @@ const finite = (value: unknown): value is number => typeof value === "number" &&
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 const conflict = /^(?:<{7}|={7}|>{7}|\|{7})(?:\s.*)?\r?$/m;
 
+export function readingProperties(text: string): { title?: string; status?: string } {
+  const header = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1] ?? "";
+  const optional = (key: string) => {
+    const matches = [...header.matchAll(new RegExp(`^${key}:[ \\t]*(.*?)\\r?$`, "gm"))];
+    if (matches.length > 1) throw new NoteError(`Duplicate ${key} in reading note.`);
+    return matches.length ? headerValue(header, key) : undefined;
+  };
+  return { title: optional("marglow_title"), status: optional("marglow_status") };
+}
+
+export function hasFreeWriting(text: string): boolean {
+  return !!text.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, "").replace(/^Source:.*$/m, "").replace(/^#{1,6} [^\r\n]*\r?$/gm, "").trim();
+}
+
+export function setReadingStatus(text: string, status: "" | "reading" | "read"): string {
+  parseReadingNote(text);
+  const header = /^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/.exec(text)![0];
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  const pattern = /^marglow_status:[^\r\n]*(?:\r?\n|$)/m;
+  const line = status ? `marglow_status: ${JSON.stringify(status)}${eol}` : "";
+  const updated = pattern.test(header) ? header.replace(pattern, line) : header.replace(/\r?\n---(?:\r?\n|$)$/, `${eol}${line}---${eol}`);
+  const result = updated + text.slice(header.length);
+  parseReadingNote(result);
+  return result;
+}
+
 export function isReadingNote(text: string): boolean {
   const header = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text)?.[1];
   return header !== undefined && /^annotation_schema:/m.test(header);
 }
 
 function headerValue(header: string, key: string): string {
-  const matches = [...header.matchAll(new RegExp(`^${key}:\\s*(.*?)\\r?$`, "gm"))];
+  const matches = [...header.matchAll(new RegExp(`^${key}:[ \\t]*(.*?)\\r?$`, "gm"))];
   if (matches.length !== 1) throw new NoteError(`Missing or duplicate ${key} in reading note.`);
   const raw = matches[0]![1]!;
   if (raw.startsWith('"')) {
@@ -37,8 +78,9 @@ function headerValue(header: string, key: string): string {
   return raw.startsWith("'") && raw.endsWith("'") ? raw.slice(1, -1).replace(/''/g, "'") : raw;
 }
 
-function validMetadata(value: unknown): value is Omit<Annotation, "quote" | "comment"> {
+export function validMetadata(value: unknown): value is Omit<Annotation, "quote" | "comment"> {
   if (!record(value) || typeof value.id !== "string" || !ID.test(value.id) || typeof value.blockId !== "string" || !ID.test(value.blockId)) return false;
+  if (value.commentBlockId !== undefined && (typeof value.commentBlockId !== "string" || !ID.test(value.commentBlockId))) return false;
   if (!COLORS.some(color => color === value.color) || typeof value.createdAt !== "string" || typeof value.updatedAt !== "string") return false;
   if (!Number.isFinite(Date.parse(value.createdAt)) || !Number.isFinite(Date.parse(value.updatedAt)) || !record(value.anchor)) return false;
   if (value.style !== undefined && value.style !== "highlight" && value.style !== "underline") return false;
@@ -63,7 +105,7 @@ function plainText(text: string): string {
   return text.replace(/&#37;&#37;/g, "%%");
 }
 
-export function createReadingNote(source: Source): string {
+export function createLegacyReadingNote(source: Source): string {
   return `---\nannotation_schema: 1\nannotation_document_id: ${newId("doc")}\nannotation_source: ${JSON.stringify(`[[${source.path}]]`)}\nannotation_source_type: ${source.type}\n---\n\n# Reading notes\n\nSource: [[${source.path}]]\n\n## My notes\n\n\n## Annotations\n`;
 }
 
@@ -81,7 +123,9 @@ export function serializeAnnotation(annotation: Annotation, eol = "\n"): string 
   ].join("\n").replace(/\r?\n/g, eol);
 }
 
-export function parseReadingNote(text: string): ReadingNote {
+export function parseReadingNote(text: string, allowMissingBodies = false): ReadingNote {
+  const version = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text)?.[1];
+  if (version && /^annotation_schema:\s*2\s*$/m.test(version)) return parseV2Note(text, allowMissingBodies);
   try {
     if (conflict.test(text)) throw new NoteError("Resolve the conflict markers in the reading note before editing annotations.");
     const headerMatch = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text);
@@ -138,7 +182,7 @@ export function parseReadingNote(text: string): ReadingNote {
     // A lone surviving metadata or block marker must not be mistaken for deletion.
     const outside = entries.reduceRight((result, entry) => result.slice(0, entry.start) + result.slice(entry.end), text);
     if (/^oa:meta\r?$|^%% oa:(?:annotation|comment):|^\^ann-[a-zA-Z0-9-]+\r?$/m.test(outside)) throw new NoteError("Orphaned annotation metadata; repair the entry boundaries.");
-    return { source, documentId, entries };
+    return { source, documentId, entries, version: 1, thoughts: [], missing: [], ...readingProperties(text), hasFreeNotes: hasFreeWriting(outside) };
   } catch (error) {
     if (error instanceof NoteError) throw error;
     throw new NoteError("The reading note contains malformed metadata. Its content has been preserved.");
@@ -147,6 +191,7 @@ export function parseReadingNote(text: string): ReadingNote {
 
 export function updateEntry(text: string, annotation: Annotation, expectedRaw?: string): string {
   const note = parseReadingNote(text);
+  if (note.version === 2) return updateV2Entry(text, annotation, expectedRaw);
   const entry = note.entries.find(entry => entry.annotation.id === annotation.id);
   if (expectedRaw !== undefined && (!entry || entry.raw !== expectedRaw)) throw new NoteError("This annotation changed while you were editing it. Your input has been kept; reopen the annotation before saving.");
   const eol = text.includes("\r\n") ? "\r\n" : "\n";
@@ -157,12 +202,15 @@ export function updateEntry(text: string, annotation: Annotation, expectedRaw?: 
 }
 
 export function deleteEntry(text: string, id: string, expectedRaw: string): string {
+  if (parseReadingNote(text).version === 2) return deleteV2Entry(text, id, expectedRaw);
   const entry = parseReadingNote(text).entries.find(entry => entry.annotation.id === id);
   if (!entry || entry.raw !== expectedRaw) throw new NoteError("This annotation changed. Reopen it before deleting.");
   const result = text.slice(0, entry.start) + text.slice(entry.end);
   parseReadingNote(result);
   return result;
 }
+
+export function createReadingNote(source: Source): string { return createV2Note(source); }
 
 export function replaceSource(text: string, source: Source): string {
   const note = parseReadingNote(text);

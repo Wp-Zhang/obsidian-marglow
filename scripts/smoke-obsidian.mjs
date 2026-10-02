@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { trustTestVault } from "./obsidian-test-trust.mjs";
+import { smokeReadingNotes } from "./smoke-reading-notes.mjs";
+import { smokeAnnotationUX } from "./smoke-annotation-ux.mjs";
 import { spawn } from "node:child_process";
 import { copyFile, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -17,14 +19,14 @@ for (const file of ["main.js", "manifest.json", "styles.css"]) await copyFile(`d
 let markdown = "# Smoke test\n\nFirst **important sentence** with a [link](https://example.com).\n\nAnother paragraph for context.\n\n- A useful list item.\n\n| A | B |\n| --- | --- |\n| Table text | Context |\n";
 await writeFile(`${vault}/Smoke.md`, markdown);
 
-function pdfFixture(pageCount = 2) {
+function pdfFixture(pageCount = 2, dense = false) {
   const pageIds = Array.from({ length: pageCount }, (_, index) => 3 + index * 2);
   const fontId = 3 + pageCount * 2;
   const objects = ["<< /Type /Catalog /Pages 2 0 R >>", `<< /Type /Pages /Kids [${pageIds.map(id => `${id} 0 R`).join(" ")}] /Count ${pageCount} >>`];
   for (const page of pageIds) {
     const stream = page + 1;
     objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 360] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${stream} 0 R >>`);
-    const content = `BT /F1 16 Tf 50 280 Td (Marglow page ${(page - 1) / 2}) Tj 0 -35 Td (An important PDF passage.) Tj ET`;
+    const content = dense ? `BT /F1 16 Tf 50 280 Td (First tightly spaced PDF line.) Tj 0 -18 Td (Second tightly spaced PDF line.) Tj 0 -18 Td (Third tightly spaced PDF line.) Tj ET` : `BT /F1 16 Tf 50 280 Td (Marglow page ${(page - 1) / 2}) Tj 0 -35 Td (An important PDF passage.) Tj ET`;
     objects.push(`<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream`);
   }
   objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
@@ -41,6 +43,8 @@ const pdf = pdfFixture();
 const longPdf = pdfFixture(30);
 await writeFile(`${vault}/Long.pdf`, longPdf);
 await writeFile(`${vault}/Smoke.pdf`, pdf);
+const densePdf = pdfFixture(1, true);
+await writeFile(`${vault}/Dense.pdf`, densePdf);
 await writeFile(`${vault}/.obsidian/app.json`, JSON.stringify({ livePreview: false, defaultViewMode: "preview", showInlineTitle: false, alwaysUpdateLinks: true }));
 await writeFile(`${vault}/.obsidian/community-plugins.json`, JSON.stringify(["marglow"]));
 await writeFile(`${vault}/.obsidian/workspace.json`, JSON.stringify({ main: { id: "main", type: "split", children: [{ id: "smoke-leaf", type: "leaf", state: { type: "markdown", state: { file: "Smoke.md", mode: "preview" } } }], direction: "vertical" }, active: "smoke-leaf" }));
@@ -73,10 +77,12 @@ try {
   page.on("pageerror", error => errors.push(error.message));
   await page.evaluate(() => {
     window.marglowSmokeErrors = [];
+    window.marglowExpectedNotices = [];
     new MutationObserver(() => {
       for (const element of document.querySelectorAll(".notice")) {
         const text = element.textContent;
-        if (text.startsWith("Marglow:") && text !== "Marglow: Select replacement text, then press Reassociate." && !window.marglowSmokeErrors.includes(text)) window.marglowSmokeErrors.push(text);
+        const expected = window.marglowExpectedNotices.includes(text) || text === "Marglow: Select replacement text, then press Reassociate." || text === "Marglow: Reference copied. Paste it into your note." || text.startsWith("Marglow: Reading note upgraded. Original backup:");
+        if (text.startsWith("Marglow:") && !expected && !window.marglowSmokeErrors.includes(text)) window.marglowSmokeErrors.push(text);
       }
     }).observe(document.body, { childList: true, subtree: true });
   });
@@ -143,12 +149,13 @@ try {
 
   await selectStrong();
   await page.getByRole("button", { name: "Highlight green", exact: true }).click();
-  assert.equal((await noteText()).match(/oa:annotation:start/g).length, 1);
+  assert.equal((await noteText()).match(/marglow:record ann-/g).length, 1);
   passed("Exact selection reuse");
+  await page.keyboard.press("Escape");
   await selectStrong(9);
   await page.getByRole("button", { name: "Highlight pink", exact: true }).click();
   await highlightCount(2);
-  const ids = [...(await noteText()).matchAll(/oa:annotation:start ([a-zA-Z0-9-]+)/g)].map(match => match[1]);
+  const ids = [...(await noteText()).matchAll(/marglow:record (ann-[a-zA-Z0-9-]+)/g)].map(match => match[1]);
   await clickHighlight();
   await page.locator(".marglow-choices button").first().click();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
@@ -251,7 +258,11 @@ try {
   assert.ok((await noteText()).includes("Direct edit."));
   passed("Unlocated preservation and manual reassociation");
 
-  await page.evaluate(async id => app.vault.process(app.vault.getFileByPath("_marglow/Smoke.md.annotations.md"), text => text.replace(new RegExp(`%% oa:annotation:start ${id} %%[\\s\\S]*?%% oa:annotation:end ${id} %%`), "")), ids[1]);
+  await page.evaluate(async id => {
+    const store = app.plugins.plugins.marglow.store, source = {path:"Smoke.md",type:"markdown"};
+    const {note} = await store.load(source), entry = note.entries.find(item=>item.annotation.id===id);
+    await store.remove(source,id,entry.raw);
+  }, ids[1]);
   await page.waitForFunction(() => document.querySelector(".marglow-file-tools > button:last-child")?.textContent === "Reading notes · 1");
   assert.ok((await noteText()).includes("Handwritten summary."));
   passed("Complete entry deletion and handwritten content preservation");
@@ -267,6 +278,7 @@ try {
     const session = [...app.plugins.plugins.marglow.mounted.values()].find(mount => mount.session.source.path === "Renamed.md").session;
     await session.ui.finish();
   });
+  await page.locator(".workspace-leaf.mod-active .markdown-preview-view h1").first().click();
   await pageTools.getByRole("button", { name: "Choose pink", exact: true }).click();
   await pageTools.getByRole("button", { name: "Highlight", exact: true }).click();
   assert.equal(await pageTools.getByRole("button", { name: "Highlight", exact: true }).getAttribute("aria-pressed"), "true");
@@ -275,6 +287,7 @@ try {
     const session = [...app.plugins.plugins.marglow.mounted.values()].find(mount => mount.session.source.path === "Renamed.md")?.session;
     return session && !session.pageBusy && getSelection().isCollapsed && (await app.vault.read(app.vault.getFileByPath("_marglow/Renamed.md.annotations.md"))).includes('"color":"pink"');
   });
+  await page.locator(".workspace-leaf.mod-active .markdown-preview-view h1").first().click();
   await pageTools.getByRole("button", { name: "Highlight", exact: true }).click();
   assert.equal(await pageTools.getByRole("button", { name: "Highlight", exact: true }).getAttribute("aria-pressed"), "false");
   await pageTools.getByRole("button", { name: "Comment", exact: true }).click();
@@ -285,7 +298,7 @@ try {
   await page.waitForFunction(async () => (await app.vault.read(app.vault.getFileByPath("_marglow/Renamed.md.annotations.md"))).includes("Comment from the page toolbar."));
   await page.screenshot({ path: `${output}/page-toolbar-dark.png` });
   const afterToolbar = await page.evaluate(async () => app.vault.read(app.vault.getFileByPath("_marglow/Renamed.md.annotations.md")));
-  assert.equal(afterToolbar.match(/oa:annotation:start/g)?.length, 2);
+  assert.equal(afterToolbar.match(/marglow:record ann-/g)?.length, 2);
   passed("Page toolbar highlight mode and comment-before-selection workflow");
 
   await page.evaluate(async () => app.workspace.getLeaf(false).openFile(app.vault.getFileByPath("Smoke.pdf")));
@@ -302,7 +315,7 @@ try {
     const first = document.querySelector('.page[data-page-number="1"] .textLayer span');
     if (!first) return false;
     const range = document.createRange(); range.selectNodeContents(first.firstChild);
-    const text = range.getBoundingClientRect();
+    const text = first.getBoundingClientRect();
     // Screen sorting changes fragment order after rotation; match the text box,
     // rather than assuming the first overlay corresponds to the first DOM span.
     return [...document.querySelectorAll('.page[data-page-number="1"] .marglow-highlight')].some(highlight => {
@@ -337,7 +350,7 @@ try {
       const currentHighlight = document.querySelector('.page[data-page-number="1"] .marglow-highlight');
       if (!currentText || !currentHighlight) throw new Error("PDF layer missing during scroll");
       const range = document.createRange(); range.selectNodeContents(currentText.firstChild);
-      const text = range.getBoundingClientRect(), overlay = currentHighlight.getBoundingClientRect();
+      const text = currentText.getBoundingClientRect(), overlay = currentHighlight.getBoundingClientRect();
       worst = Math.max(worst, ...["left", "top", "width", "height"].map(key => Math.abs(text[key] - overlay[key])));
       await new Promise(requestAnimationFrame);
     }
@@ -370,12 +383,12 @@ try {
   passed("PDF sidebar navigation and cross-page selection/hover emphasis");
   await pageTools.getByRole("button", { name: /^Reading notes/ }).click();
   await page.evaluate(async () => app.workspace.getLeaf("tab").openFile(app.vault.getFileByPath("Renamed.md"), { state: { mode: "preview" } }));
-  await page.waitForFunction(() => document.querySelector('.marglow-comments-source')?.textContent === "Renamed.md");
+  await page.waitForFunction(() => document.querySelector('.marglow-reading-header > strong')?.textContent === "Renamed");
   await sidebar.locator('.marglow-comment-card').filter({ hasText: "Comment from the page toolbar." }).waitFor();
   await page.evaluate(() => app.workspace.revealLeaf(app.workspace.getLeavesOfType("marglow-comments")[0]));
-  await page.waitForFunction(() => document.querySelector('.marglow-comments-source')?.textContent === "Renamed.md");
+  await page.waitForFunction(() => document.querySelector('.marglow-reading-header > strong')?.textContent === "Renamed");
   await page.evaluate(() => app.workspace.setActiveLeaf(app.workspace.getLeavesOfType("pdf")[0], { focus: true }));
-  await page.waitForFunction(() => document.querySelector('.marglow-comments-source')?.textContent === "Smoke.pdf");
+  await page.waitForFunction(() => document.querySelector('.marglow-reading-header > strong')?.textContent === "Smoke");
   assert.equal(await sidebar.locator('.marglow-comment-card').count(), 1);
   await closeSidebar();
   await page.evaluate(() => app.workspace.getLeavesOfType("markdown").filter(leaf => leaf.view.file?.path === "Renamed.md").forEach(leaf => leaf.detach()));
@@ -418,7 +431,7 @@ try {
   await page.keyboard.press("Meta+Backspace");
   await highlightCount(0);
   await page.waitForFunction(() => document.querySelectorAll('.marglow-comment-card').length === 0);
-  assert.equal((await page.evaluate(async () => app.vault.read(app.vault.getFileByPath("_marglow/Smoke.pdf.annotations.md")))).includes("oa:annotation:start"), false);
+  assert.equal((await page.evaluate(async () => app.vault.read(app.vault.getFileByPath("_marglow/Smoke.pdf.annotations.md")))).includes("marglow:record ann-"), false);
   passed("Mac command-delete removes the selected cross-page PDF annotation");
   await closeSidebar();
   await page.evaluate(async () => app.workspace.getLeaf(false).openFile(app.vault.getFileByPath("Renamed.md"), { state: { mode: "preview" } }));
@@ -458,9 +471,11 @@ try {
   await selectStrong();
   await pageTools.getByRole("button", { name: "Underline", exact: true }).click();
   const mdText = await page.evaluate(async () => app.vault.read(app.vault.getFileByPath("_marglow/Renamed.md.annotations.md")));
-  assert.equal(mdText.match(/oa:annotation:start/g).length, 2);
-  const underlineCard = sidebar.locator('.marglow-comment-card').filter({ hasText: "Underline · no comment" });
-  await underlineCard.locator('.marglow-comment-text').click();
+  assert.equal(mdText.match(/marglow:record ann-/g).length, 2);
+  const underlineId = await page.evaluate(()=>[...app.plugins.plugins.marglow.mounted.values()].find(m=>m.session.source.path==='Renamed.md').session.entries.find(e=>e.annotation.style==='underline').annotation.id);
+  const underlineCard = sidebar.locator(`[data-annotation-id="${underlineId}"]`);
+  await underlineCard.hover();
+  await underlineCard.locator('.marglow-add-comment').click();
   await sidebar.getByRole("textbox", { name: "Comment", exact: true }).fill("Inline underline comment.");
   await sidebar.getByRole("button", { name: "Save", exact: true }).click();
   await page.waitForFunction(() => document.querySelector('.marglow-sidebar')?.textContent.includes("Inline underline comment."));
@@ -541,7 +556,7 @@ try {
     const entry = session.entries[0].annotation;
     for (let index = 0; index < 25; index++) {
       const id = `ann-${crypto.randomUUID()}`;
-      await app.plugins.plugins.marglow.store.save(session.source, { ...entry, id, blockId: id });
+      await app.plugins.plugins.marglow.store.save(session.source, { ...entry, id, blockId: id, commentBlockId: undefined });
     }
   });
   await page.waitForFunction(() => document.querySelectorAll('.marglow-comment-card').length === 27);
@@ -667,8 +682,11 @@ try {
   await page.screenshot({ path: `${output}/phone-safe-area-layout.png` });
   await page.evaluate(() => document.querySelector('.marglow-phone-fixture').remove());
   passed("Phone inset layout fixture keeps the Markdown toolbar reachable as navigation spacing changes");
+  await smokeReadingNotes(page, passed);
+  await smokeAnnotationUX(page, passed, output);
   assert.equal(await readFile(`${vault}/Renamed.md`, "utf8"), markdown);
   assert.deepEqual(await readFile(`${vault}/Smoke.pdf`), pdf);
+  assert.deepEqual(await readFile(`${vault}/Dense.pdf`), densePdf);
   assert.deepEqual(errors, []);
   assert.deepEqual(await page.evaluate(() => window.marglowSmokeErrors), []);
   passed("Source-byte preservation and no renderer exceptions");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createReadingNote, deleteEntry, isReadingNote, parseReadingNote, replaceSource, serializeAnnotation, updateEntry } from "../src/format";
+import { createLegacyReadingNote as createReadingNote, deleteEntry, isReadingNote, parseReadingNote, replaceSource, serializeAnnotation, updateEntry } from "../src/format";
 import { annotation, source } from "./helpers";
 
 describe("Markdown annotation persistence", () => {

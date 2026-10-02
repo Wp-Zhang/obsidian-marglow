@@ -1,5 +1,7 @@
 # Community submission preparation
 
+This document records the completed 0.2.5 submission. The repository now also contains a local 0.3.0 development build; it has not been published by this work and its physical iOS acceptance is pending. Use README and TESTING for the current build's capabilities and checks; the historical results below do not verify the new build.
+
 Prepared on 2026-09-30; updated on 2026-10-01 for **0.2.5 — Public beta 6** and the maintainer-reported iOS test pass. The maintainer confirmed official community review approval on 2026-10-01.
 
 ## Submission details

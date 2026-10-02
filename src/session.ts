@@ -5,6 +5,8 @@ import type { Entry } from "./format";
 import { AnnotationStore } from "./store";
 import { AnnotationUI, colorButton } from "./ui";
 import { overlayRect } from "./overlay-geometry";
+import { CommentPreview } from "./comment-preview";
+import { setReadingIcon } from "./action-icons";
 import { COLORS, createAnnotation, type Color, type Annotation, type CapturedSelection, type DocumentAdapter, type LocatedAnnotation, type Source } from "./model";
 
 export interface SessionCallbacks {
@@ -17,6 +19,7 @@ export interface SessionCallbacks {
   isCommentsVisible(this: void, session: AnnotationSession): boolean;
   revealSource(this: void): Promise<void>;
   isActive(this: void): boolean;
+  copyReference?(this: void, annotation: Annotation): Promise<void>;
 }
 
 export class AnnotationSession {
@@ -33,6 +36,7 @@ export class AnnotationSession {
   private resize: ResizeObserver;
   private frame: number | undefined;
   private selectionTimer: number | undefined;
+  private toolbarSelection: CapturedSelection | null = null;
   private version = 0;
   private disposed = false;
   private error = "";
@@ -52,12 +56,14 @@ export class AnnotationSession {
   private preview: Annotation | null = null;
   private navigation = 0;
   private unlocated = new Set<string>();
+  private commentPreview: CommentPreview;
 
   constructor(readonly source: Source, readonly adapter: DocumentAdapter, private store: AnnotationStore, private mobile: boolean, private callbacks: SessionCallbacks) {
     const root = adapter.root;
     const document = root.ownerDocument;
     this.abort = new document.win.AbortController();
-    this.ui = new AnnotationUI(document, mobile, callbacks.report, () => { this.scheduleRender(); callbacks.onUiClosed(); }, () => this.render());
+    this.ui = new AnnotationUI(document, mobile, callbacks.report, () => { this.preview = null; this.scheduleRender(); callbacks.onUiClosed(); }, () => this.render());
+    this.commentPreview = new CommentPreview(document);
     this.overlay = document.win.createDiv();
     this.overlay.className = "marglow-overlay";
     this.overlay.setAttribute("aria-hidden", "true");
@@ -66,44 +72,42 @@ export class AnnotationSession {
     this.tools.setAttribute("role", "toolbar");
     this.tools.setAttribute("aria-label", "Page annotation tools");
     this.tools.addEventListener("pointerdown", event => {
-      if ((event.target as Element).closest("button")) { event.preventDefault(); event.stopPropagation(); }
+      const button = (event.target as Element).closest("button");
+      if (button) {
+        this.toolbarSelection = !button.classList.contains("marglow-notes-button") ? this.currentSelection() : null;
+        if (event.pointerType !== "touch") event.preventDefault();
+        event.stopPropagation();
+      }
     });
+    this.tools.addEventListener("click", () => { this.toolbarSelection = null; });
     for (const color of COLORS) {
       colorButton(this.tools, color, async () => {
-        if (this.ui.hasDraft || this.ui.isBusy) return;
+        const selection = this.selectionForTool();
+        if (this.pageBusy || this.error || !await this.ui.finish()) return;
         this.preferredColor = color;
         this.updatePageTools();
-        const selection = this.currentSelection();
         if (selection) await this.pageAction(selection, this.preferredStyle);
-        else if (this.callbacks.isCommentsVisible(this) && !this.pageBusy && !this.error) {
-          const entry = this.entries.find(entry => entry.annotation.id === this.activeId);
-          if (!entry) return;
-          this.pageBusy = true;
-          try {
-            await this.store.save(this.source, { ...entry.annotation, color, updatedAt: new Date().toISOString() }, entry.raw);
-            await this.refresh();
-          } catch (error) { callbacks.report(error instanceof Error ? error.message : String(error)); }
-          finally { this.pageBusy = false; }
-        }
+        else await this.changeSelected({ color });
       }, `Choose ${color}`);
     }
     this.pageHighlight = document.win.createEl("button");
     this.pageHighlight.type = "button";
     this.pageHighlight.setAttribute("aria-label", "Highlight");
     setIcon(this.pageHighlight, "highlighter");
-    this.pageHighlight.addEventListener("click", () => this.chooseTool("highlight"));
+    this.pageHighlight.addEventListener("click", () => { void this.chooseTool("highlight"); });
     this.pageUnderline = document.win.createEl("button"); this.pageUnderline.type = "button";
     this.pageUnderline.setAttribute("aria-label", "Underline"); this.pageUnderline.title = "Underline the selection or activate underline mode";
     setIcon(this.pageUnderline, "underline");
-    this.pageUnderline.addEventListener("click", () => this.chooseTool("underline"));
+    this.pageUnderline.addEventListener("click", () => { void this.chooseTool("underline"); });
     this.pageComment = document.win.createEl("button");
     this.pageComment.type = "button";
     this.pageComment.setAttribute("aria-label", "Comment");
     setIcon(this.pageComment, "message-square");
-    this.pageComment.addEventListener("click", () => this.chooseTool("comment"));
+    this.pageComment.addEventListener("click", () => { void this.chooseTool("comment"); });
     this.tools.append(this.pageHighlight, this.pageUnderline, this.pageComment);
-    this.sidebar = new AnnotationSidebar(document, (annotation, edit) => { void this.selectFromSidebar(annotation, edit).catch(error => callbacks.report(error instanceof Error ? error.message : String(error))); }, id => this.emphasize(this.activeId, id), annotation => { void this.removeFromSidebar(annotation); });
+    this.sidebar = new AnnotationSidebar(document, (annotation, edit) => { void this.selectFromSidebar(annotation, edit).catch(error => callbacks.report(error instanceof Error ? error.message : String(error))); }, id => this.emphasize(this.activeId, id), annotation => { void this.removeFromSidebar(annotation); }, annotation => { void callbacks.copyReference?.(annotation).catch(error => callbacks.report(String(error))); });
     this.ui.navigationContainer = this.sidebar.element;
+    this.ui.actionContainer = this.tools;
     this.sidebar.element.classList.toggle("marglow-mobile", mobile);
     this.notesButton = document.win.createEl("button");
     this.notesButton.className = "marglow-notes-button";
@@ -121,11 +125,11 @@ export class AnnotationSession {
     root.append(this.overlay);
     this.overlays.set(root, this.overlay);
     const signal = this.abort.signal;
-    root.addEventListener("pointerdown", event => { this.pointerStart = { x: event.clientX, y: event.clientY }; this.pointerActive = true; }, { signal });
+    root.addEventListener("pointerdown", event => { this.toolbarSelection = null; this.pointerStart = { x: event.clientX, y: event.clientY }; this.pointerActive = true; }, { signal });
     document.addEventListener("pointerup", () => {
       if (this.pointerActive) { this.pointerActive = false; window.clearTimeout(this.selectionTimer); this.selectionTimer = window.setTimeout(() => this.capture(), 0); }
     }, { capture: true, signal });
-    document.addEventListener("pointercancel", () => { this.pointerActive = false; }, { signal });
+    document.addEventListener("pointercancel", () => { this.pointerActive = false; this.toolbarSelection = null; }, { signal });
     document.addEventListener("keydown", event => {
       if (!isAnnotationDelete(event) || !callbacks.isActive() || this.disposed || this.suspended || this.error || this.pageBusy || this.ui.isBusy || this.ui.hasDraft) return;
       const entry = this.entries.find(entry => entry.annotation.id === this.activeId);
@@ -140,6 +144,7 @@ export class AnnotationSession {
       void this.removeEntry(entry).then(() => this.ui.close()).catch(error => callbacks.report(error instanceof Error ? error.message : String(error))).finally(() => { this.pageBusy = false; });
     }, { capture: true, signal });
     document.addEventListener("selectionchange", () => {
+      this.syncTextSelection();
       window.clearTimeout(this.selectionTimer);
       this.selectionTimer = window.setTimeout(() => this.capture(), 100);
     }, { signal });
@@ -160,12 +165,15 @@ export class AnnotationSession {
       }
     }, { signal });
     root.addEventListener("pointermove", event => {
-      if (this.pointerActive || (event.target as Element).closest(".marglow-ui")) return;
+      if (event.pointerType === "touch" || this.pointerActive || this.hasTextSelection() || this.ui.hasDraft || this.ui.isBusy || (event.target as Element).closest(".marglow-ui")) { this.commentPreview.hide(); return; }
       const hits = this.hits(event.clientX, event.clientY);
-      this.emphasize(this.activeId, hits.find(hit => hit.annotation.id === this.activeId)?.annotation.id ?? hits[0]?.annotation.id ?? null);
+      const hit = hits.find(hit => hit.annotation.id === this.activeId) ?? hits[0];
+      this.emphasize(this.activeId, hit?.annotation.id ?? null);
+      if (hit?.annotation.comment.trim()) this.commentPreview.show(hit.annotation, hit.rects.find(rect => event.clientY >= rect.top && event.clientY <= rect.bottom) ?? new DOMRect(event.clientX, event.clientY, 1, 1));
+      else this.commentPreview.leave();
     }, { signal });
-    root.addEventListener("pointerleave", () => this.emphasize(this.activeId, null), { signal });
-    root.addEventListener("scroll", () => { if (this.source.type !== "pdf") this.scheduleRender(); }, { capture: true, signal });
+    root.addEventListener("pointerleave", () => { this.emphasize(this.activeId, null); this.commentPreview.leave(); }, { signal });
+    root.addEventListener("scroll", () => { this.commentPreview.hide(); if (this.source.type !== "pdf") this.scheduleRender(); }, { capture: true, signal });
     document.defaultView?.addEventListener("resize", () => this.scheduleRender(), { signal });
     this.observer = new MutationObserver(records => {
       const external = records.some(record => {
@@ -214,23 +222,36 @@ export class AnnotationSession {
   }
 
   private actions(selection: CapturedSelection, entry?: Entry) {
-    const annotation = entry?.annotation ?? createAnnotation(selection, this.preferredColor, "", this.preferredStyle);
+    let snapshot = entry;
+    let annotation = entry?.annotation ?? createAnnotation(selection, this.preferredColor, "", this.preferredStyle);
     this.preview = entry ? null : annotation;
     this.emphasize(annotation.id, this.hoveredId, true);
     this.render();
     const save = async (updated: Annotation) => {
       if (this.disposed) throw new Error("The source view closed. Reopen it before saving.");
-      await this.store.save(this.source, { ...updated, updatedAt: new Date().toISOString() }, entry?.raw);
+      const saved = await this.store.save(this.source, { ...updated, updatedAt: new Date().toISOString() }, snapshot?.raw);
+      // Advance only to the exact snapshot committed by this action. External
+      // edits after it must still reject a subsequent write from the open popup.
+      snapshot = saved; annotation = saved.annotation;
       this.preview = null;
       this.activeId = updated.id;
       this.adapter.root.ownerDocument.getSelection()?.removeAllRanges();
       await this.refresh();
     };
     return {
+      current: () => snapshot?.annotation,
       highlight: (color: Annotation["color"], comment = annotation.comment) => save({ ...annotation, color, comment }),
       comment: (comment: string) => save({ ...annotation, comment }),
+      style: async (style: "highlight" | "underline", comment?: string) => {
+        if (snapshot) this.checkStyle(snapshot, style);
+        else {
+          const existing = this.entries.find(item => (item.annotation.style ?? "highlight") === style && this.adapter.matches(item.annotation, selection));
+          if (existing) { snapshot = existing; annotation = existing.annotation; }
+        }
+        await save({ ...annotation, style, comment: comment ?? annotation.comment });
+      },
       ...(entry ? { delete: async () => {
-        await this.removeEntry(entry);
+        await this.removeEntry(snapshot!);
       } } : {}),
     };
   }
@@ -257,6 +278,7 @@ export class AnnotationSession {
     const entry = this.entries.find(entry => entry.annotation.id === annotation.id);
     if (!entry || this.error) return;
     this.preview = null;
+    this.commentPreview.hide(); this.toolMode = null;
     this.emphasize(annotation.id, this.hoveredId, true);
     if (this.callbacks.isCommentsVisible(this)) {
       this.ui.close();
@@ -276,19 +298,67 @@ export class AnnotationSession {
     }
   }
 
-  private chooseTool(mode: "highlight" | "underline" | "comment"): void {
-    if (this.ui.hasDraft || this.ui.isBusy) return;
+  private selectionForTool(): CapturedSelection | null {
+    const selection = this.currentSelection() ?? this.toolbarSelection;
+    this.toolbarSelection = null;
+    return selection;
+  }
+
+  private async chooseTool(mode: "highlight" | "underline" | "comment"): Promise<void> {
+    const selection = this.selectionForTool();
+    if (this.pageBusy || this.error || !await this.ui.finish()) return;
+    if (selection) { await this.pageAction(selection, mode); return; }
     if (this.toolMode === mode) {
       this.toolMode = null;
       window.clearTimeout(this.selectionTimer);
       this.adapter.root.ownerDocument.getSelection()?.removeAllRanges();
       this.ui.close(); this.updatePageTools(); return;
     }
+    const entry = this.entries.find(entry => entry.annotation.id === this.activeId);
+    if (entry) {
+      if (mode !== "comment") await this.changeSelected({ style: mode });
+      else {
+        const rect = this.adapter.locate(entry.annotation)?.[0] ?? this.tools.getBoundingClientRect();
+        const selected = { quote: entry.annotation.quote, anchor: entry.annotation.anchor, rect };
+        this.ui.showComment(selected, this.actions(selected, entry), entry.annotation, this.callbacks.isCommentsVisible(this) ? this.sidebar.editorHost(entry.annotation.id) : undefined);
+      }
+      return;
+    }
     if (mode !== "comment") this.preferredStyle = mode;
-    const selection = this.currentSelection();
-    if (selection) { void this.pageAction(selection, mode); return; }
     this.ui.close();
     this.toolMode = this.toolMode === mode ? null : mode;
+    this.updatePageTools();
+  }
+
+  private checkStyle(entry: Entry, style: "highlight" | "underline"): void {
+    if ((entry.annotation.style ?? "highlight") === style) return;
+    const selection = { quote: entry.annotation.quote, anchor: entry.annotation.anchor, rect: this.tools.getBoundingClientRect() };
+    if (this.entries.some(other => other.annotation.id !== entry.annotation.id && (other.annotation.style ?? "highlight") === style && this.adapter.matches(other.annotation, selection))) throw new Error(`This selection already has an ${style === "underline" ? "underline" : "highlight"}. Select that annotation to edit it.`);
+  }
+
+  private async changeSelected(change: { color?: Color; style?: "highlight" | "underline" }): Promise<void> {
+    const entry = this.entries.find(entry => entry.annotation.id === this.activeId);
+    if (!entry || this.pageBusy || this.error) return;
+    this.pageBusy = true;
+    try {
+      if (change.style) this.checkStyle(entry, change.style);
+      if (change.color === entry.annotation.color || change.style === (entry.annotation.style ?? "highlight")) return;
+      await this.store.save(this.source, { ...entry.annotation, ...change, updatedAt: new Date().toISOString() }, entry.raw);
+      this.toolMode = null;
+      await this.refresh();
+    } catch (error) { this.callbacks.report(error instanceof Error ? error.message : String(error)); }
+    finally { this.pageBusy = false; this.updatePageTools(); }
+  }
+
+  private hasTextSelection(): boolean {
+    const selection = this.adapter.root.ownerDocument.getSelection();
+    return !!selection && !selection.isCollapsed && !!selection.anchorNode && !!selection.focusNode && this.adapter.root.contains(selection.anchorNode) && this.adapter.root.contains(selection.focusNode) && !(selection.anchorNode.parentElement?.closest(".marglow-ui, .marglow-overlay"));
+  }
+
+  private syncTextSelection(): void {
+    const selecting = this.hasTextSelection();
+    this.adapter.root.classList.toggle("marglow-selecting", selecting);
+    if (selecting) this.commentPreview.hide();
     this.updatePageTools();
   }
 
@@ -312,12 +382,15 @@ export class AnnotationSession {
   }
 
   private updatePageTools(): void {
+    const selected = !this.hasTextSelection() ? this.entries.find(entry => entry.annotation.id === this.activeId)?.annotation : undefined;
+    if (selected) { this.preferredColor = selected.color; this.preferredStyle = selected.style ?? "highlight"; }
     this.tools.querySelectorAll<HTMLButtonElement>(".marglow-color").forEach(button => button.setAttribute("aria-pressed", String(button.classList.contains(`marglow-${this.preferredColor}`))));
-    this.pageUnderline.setAttribute("aria-pressed", String(this.toolMode === "underline"));
-    this.pageHighlight.setAttribute("aria-pressed", String(this.toolMode === "highlight"));
+    this.pageUnderline.setAttribute("aria-pressed", String(selected ? selected.style === "underline" : this.toolMode === "underline"));
+    this.pageHighlight.setAttribute("aria-pressed", String(selected ? (selected.style ?? "highlight") === "highlight" : this.toolMode === "highlight"));
     this.pageComment.setAttribute("aria-pressed", String(this.toolMode === "comment"));
-    this.pageHighlight.title = this.toolMode === "highlight" ? "Highlight mode on — select text, or click to turn off" : "Highlight the selection or activate highlight mode";
-    this.pageComment.title = this.toolMode === "comment" ? "Select text to add a comment" : "Comment on the selection or select text next";
+    this.pageHighlight.title = selected ? "Change selected annotation to highlight" : this.toolMode === "highlight" ? "Highlight mode on — select text, or click to turn off" : "Highlight the selection or activate highlight mode";
+    this.pageUnderline.title = selected ? "Change selected annotation to underline" : this.toolMode === "underline" ? "Underline mode on — select text, or click to turn off" : "Underline the selection or activate underline mode";
+    this.pageComment.title = selected ? "Edit the selected annotation's comment" : this.toolMode === "comment" ? "Select text to add a comment" : "Comment on the selection or select text next";
   }
 
   async refresh(): Promise<void> {
@@ -343,6 +416,8 @@ export class AnnotationSession {
     }
   }
 
+  async navigateTo(annotation: Annotation): Promise<void> { await this.selectFromSidebar(annotation, false); }
+
   private scheduleRender(): void {
     if (this.frame !== undefined || this.disposed || this.suspended) return;
     this.frame = this.adapter.root.ownerDocument.defaultView!.requestAnimationFrame(() => {
@@ -360,10 +435,12 @@ export class AnnotationSession {
     this.unlocated = new Set();
     const annotations = this.entries.map(entry => entry.annotation);
     if (this.preview && this.ui.hasDraft) annotations.push(this.preview);
+    this.commentPreview.validate(annotations);
     for (const annotation of annotations) {
       const rects = this.adapter.locate(annotation);
       if (rects === null) { this.unlocated.add(annotation.id); continue; }
       located.push({ annotation, rects });
+      const indicators = new Map<HTMLElement, DOMRect>();
       for (const rect of rects) {
         const host = this.adapter.overlayHost?.(rect) ?? root;
         const local = overlayRect(rect, host);
@@ -378,6 +455,16 @@ export class AnnotationSession {
         element.style.width = `${local.width}px`;
         element.style.height = `${local.height}px`;
         nodes.push(element);
+        if (annotation.comment.trim()) indicators.set(host, rect);
+      }
+      for (const [host, rect] of indicators) {
+        const local = overlayRect(rect, host), icon = root.ownerDocument.win.createSpan();
+        icon.className = `marglow-comment-indicator marglow-${annotation.color}`; icon.dataset.annotationId = annotation.id;
+        setReadingIcon(icon, "comment");
+        const width = host === root ? host.scrollWidth : host.clientWidth;
+        icon.style.left = `${Math.max(0, Math.min(local.left + local.width + 3, width - 16))}px`;
+        icon.style.top = `${Math.max(0, local.top + (local.height - 16) / 2)}px`;
+        layers.get(host)!.push(icon);
       }
     }
     for (const [host, overlay] of this.overlays) {
@@ -407,6 +494,7 @@ export class AnnotationSession {
       return Number(this.unlocated.has(a.id)) - Number(this.unlocated.has(b.id)) || position(a) - position(b);
     }), this.unlocated, "");
     this.emphasize(this.activeId, this.hoveredId);
+    this.syncTextSelection();
     this.tools.dataset.error = "false";
     const label = `Reading notes · ${this.entries.length}${this.unlocated.size ? ` · ${this.unlocated.size} unlocated` : ""}`;
     this.notesButton.setAttribute("aria-label", label);
@@ -421,7 +509,12 @@ export class AnnotationSession {
 
   private hits(x: number, y: number): LocatedAnnotation[] {
     if (this.source.type === "pdf") this.located = this.entries.map(entry => ({ annotation: entry.annotation, rects: this.adapter.locate(entry.annotation) ?? [] }));
-    return this.located.filter(item => item.rects.some(rect => x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom));
+    const icons = new Set<string>();
+    for (const overlay of this.overlays.values()) for (const icon of overlay.querySelectorAll<HTMLElement>(".marglow-comment-indicator")) {
+      const rect = icon.getBoundingClientRect();
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) icons.add(icon.dataset.annotationId!);
+    }
+    return this.located.filter(item => icons.has(item.annotation.id) || item.rects.some(rect => x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom));
   }
 
   private emphasize(active: string | null, hovered: string | null, reveal = false): void {
@@ -432,6 +525,7 @@ export class AnnotationSession {
       element.classList.toggle("is-hovered", element.dataset.annotationId === hovered);
     }
     this.sidebar.emphasize(active, hovered, reveal);
+    this.updatePageTools();
   }
 
   get sidebarElement(): HTMLElement { return this.sidebar.element; }
@@ -475,6 +569,7 @@ export class AnnotationSession {
     this.observer.disconnect();
     this.resize.disconnect();
     this.ui.dispose();
+    this.commentPreview.dispose();
     for (const overlay of this.overlays.values()) overlay.remove();
     this.overlays.clear();
     this.readingContainer?.classList.remove("marglow-reading-container");
@@ -482,6 +577,7 @@ export class AnnotationSession {
     this.tools.remove();
     this.sidebar.dispose();
     this.adapter.root.classList.remove("marglow-source");
+    this.adapter.root.classList.remove("marglow-selecting");
     this.adapter.dispose();
   }
 

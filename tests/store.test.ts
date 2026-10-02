@@ -1,7 +1,8 @@
 import type { App, TFile } from "obsidian";
 import { describe, expect, it } from "vitest";
 import { AnnotationStore, readingNotePath } from "../src/store";
-import { createReadingNote, parseReadingNote, updateEntry } from "../src/format";
+import { createReadingNote, createLegacyReadingNote, parseReadingNote, updateEntry } from "../src/format";
+import { createThought } from "../src/model";
 import { annotation, source } from "./helpers";
 
 function fixture() {
@@ -31,10 +32,10 @@ function fixture() {
     },
     metadataCache: { getFirstLinkpathDest: (path: string, from: string) => path ? files.get(path)?.file ?? files.get(`${path}.md`)?.file ?? null : files.get(from)?.file ?? null, getFileCache: (file: TFile) => {
       const text = files.get(file.path)!.text;
-      try {
-        const note = parseReadingNote(text);
-        return { frontmatter: { annotation_schema: 1, annotation_source: `[[${note.source.path}]]` } };
-      } catch { return {}; }
+      const header = /^---\n([\s\S]*?)\n---/.exec(text)?.[1];
+      if (!header) return {};
+      const schema = /^annotation_schema: (.*)$/m.exec(header)?.[1], id = /^annotation_document_id: (.*)$/m.exec(header)?.[1], link = /^annotation_source: (.*)$/m.exec(header)?.[1];
+      return { frontmatter: { annotation_schema: schema === undefined ? undefined : Number(schema), annotation_document_id: id, annotation_source: link?.startsWith('"') ? JSON.parse(link) as unknown : link } };
     } },
     fileManager: { renameFile: async (file: TFile, path: string) => { const item = files.get(file.path)!; files.delete(file.path); file.path = path; files.set(path, item); } },
   } as unknown as App;
@@ -42,6 +43,17 @@ function fixture() {
 }
 
 describe("safe companion-note storage", () => {
+  it("returns each committed snapshot for repeated popup edits and still rejects a later external edit", async () => {
+    const {store,files}=fixture();
+    const first=await store.save(source,annotation());
+    const colored=await store.save(source,{...first.annotation,color:'blue'},first.raw);
+    const styled=await store.save(source,{...colored.annotation,style:'underline'},colored.raw);
+    expect(styled.annotation.color).toBe('blue');expect(styled.annotation.style).toBe('underline');
+    expect(styled.annotation.commentBlockId).toBe(first.annotation.commentBlockId);expect(styled.annotation.blockId).toBe(first.annotation.blockId);
+    const file=files.get(readingNotePath(source.path))!;file.text=file.text.replace('My thought.','Edited outside the popup.');
+    await expect(store.save(source,{...styled.annotation,color:'pink'},styled.raw)).rejects.toThrow(/changed/);
+    expect(file.text).toContain('Edited outside the popup.');
+  });
   it("creates the first note atomically without touching source bytes", async () => {
     const { store, files, writes } = fixture();
     const original = files.get(source.path)!.text;
@@ -156,6 +168,93 @@ describe("safe companion-note storage", () => {
     const before = files.get(file.path)!.text;
     await expect(store.relink(file, { type: "markdown", path: file.path })).rejects.toThrow(/cannot be used/);
     expect(files.get(file.path)!.text).toBe(before);
+  });
+});
+
+describe("new reading-note storage", () => {
+  it("creates an empty note only on an explicit action and reuses it", async () => {
+    const { store, writes } = fixture();
+    expect((await store.load(source)).file).toBeNull(); expect(writes).toHaveLength(0);
+    const file = await store.create(source);
+    expect((await store.load(source)).note!.entries).toHaveLength(0);
+    expect(await store.create(source)).toBe(file); expect(writes).toHaveLength(1);
+  });
+
+  it("saves a first thought atomically and retries the same record without duplication", async () => {
+    const { store, writes, files } = fixture();
+    const thought = { ...createThought(), text: "A whole-material thought." };
+    await store.saveThought(source, thought); expect(writes).toHaveLength(1);
+    await store.saveThought(source, thought);
+    const note = (await store.load(source)).note!;
+    expect(note.thoughts).toHaveLength(1); expect(note.entries).toHaveLength(0);
+    expect(files.get(source.path)!.text).toContain("Immutable original bytes.");
+    await expect(store.saveThought(source, { ...thought, text: "Different input." })).rejects.toThrow(/different/);
+  });
+
+  it("keeps a missing-source note editable and rejects stale thought edits", async () => {
+    const { store, files } = fixture();
+    const thought = { ...createThought(), text: "An earlier idea." }; await store.saveThought(source, thought);
+    const note = (await store.load(source)).note!; files.delete(source.path);
+    await store.saveThought(source, { ...thought, text: "A later idea." }, note.thoughts[0]!.raw, note.documentId);
+    await expect(store.saveThought(source, { ...thought, text: "Stale." }, note.thoughts[0]!.raw, note.documentId)).rejects.toThrow(/changed/);
+    expect((await store.load(source)).note!.thoughts[0]!.thought.text).toBe("A later idea.");
+  });
+
+  it("discovers unknown versions at moved locations and does not create a duplicate", async () => {
+    const { store, put, writes } = fixture();
+    put("Moved/unknown.md", createReadingNote(source).replace("annotation_schema: 2", "annotation_schema: 99"));
+    await expect(store.save(source, annotation())).rejects.toThrow(/Unsupported/); expect(writes).toHaveLength(0);
+  });
+
+  it("can open a moved damaged note for repair while all normal writes remain paused", async () => {
+    const { store, put, writes } = fixture();
+    const note = updateEntry(createReadingNote(source), annotation());
+    const file = put("Moved/damaged.md", note.replace("^ann-test-001", ""));
+    expect(store.findFile(source)).toBe(file);
+    await expect(store.load(source)).rejects.toThrow(/body missing/);
+    await expect(store.save(source, annotation())).rejects.toThrow(); expect(writes).toHaveLength(0);
+  });
+
+  it("rejects duplicate document identity even when source links differ", async () => {
+    const { store, put } = fixture();
+    const text = createReadingNote(source); put("A.md", text); put("B.md", text.replace(source.path, "Other.md"));
+    await expect(store.load(source)).rejects.toThrow(/document ID/);
+  });
+
+  it("upgrades explicitly, verifies a full original backup, and preserves old reference IDs", async () => {
+    const { store, put, files } = fixture();
+    const old = updateEntry(createLegacyReadingNote(source), annotation()) + "\nHandwritten content.\n";
+    const file = put(readingNotePath(source.path), old);
+    const backup = await store.upgrade(file, old);
+    expect(backup.extension).toBe("bak"); expect(files.get(backup.path)!.text).toBe(old);
+    const note = (await store.load(source)).note!;
+    expect(note.version).toBe(2); expect(note.entries[0]!.annotation.blockId).toBe(annotation().blockId);
+    expect(files.get(file.path)!.text).toContain("Handwritten content.");
+  });
+
+  it("does not change the original on stale previews, occupied backups, or a concurrent edit", async () => {
+    for (const situation of ["stale", "occupied", "concurrent"]) {
+      const { store, put, files, setBeforeProcess } = fixture();
+      const old = updateEntry(createLegacyReadingNote(source), annotation());
+      const file = put(readingNotePath(source.path), old);
+      if (situation === "stale") files.get(file.path)!.text += "\nExternal edit.";
+      if (situation === "occupied") put(`${file.path}.v1.bak`, "Unrelated backup.");
+      if (situation === "concurrent") setBeforeProcess(() => { files.get(file.path)!.text += "\nExternal edit."; });
+      await expect(store.upgrade(file, old)).rejects.toThrow();
+      expect(parseReadingNote(files.get(file.path)!.text).version).toBe(1);
+      if (situation !== "occupied") expect(files.get(file.path)!.text).toContain("External edit.");
+    }
+  });
+
+  it("changes only explicit reading status and protects concurrent property edits", async () => {
+    const { store, files } = fixture();
+    await store.create(source);
+    const note = (await store.load(source)).note!; expect(note.status).toBeUndefined();
+    await store.setStatus(source, "reading", { documentId: note.documentId });
+    expect((await store.load(source)).note!.status).toBe("reading");
+    await expect(store.setStatus(source, "read", { documentId: note.documentId })).rejects.toThrow(/changed/);
+    await store.setStatus(source, "", { documentId: note.documentId, status: "reading" });
+    expect(files.get(readingNotePath(source.path))!.text).not.toContain("marglow_status:");
   });
 });
 

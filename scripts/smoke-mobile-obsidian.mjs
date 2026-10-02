@@ -154,13 +154,84 @@ try {
   await page.locator('body > .marglow-composer').waitFor();
   assert.equal(await mobileSidebar.isHidden(),true);
   await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  const activeTools=page.locator('.marglow-file-tools:visible');
+  await activeTools.getByRole('button',{name:'Choose blue',exact:true}).click();
+  await page.waitForFunction(async()=>(await app.plugins.plugins.marglow.store.load({path:'Smoke.md',type:'markdown'})).note.entries[0].annotation.color==='blue');
+  await activeTools.getByRole('button',{name:'Underline',exact:true}).click();
+  await page.waitForFunction(async()=>(await app.plugins.plugins.marglow.store.load({path:'Smoke.md',type:'markdown'})).note.entries[0].annotation.style==='underline');
+  await activeTools.getByRole('button',{name:'Highlight',exact:true}).click();
+  await page.waitForFunction(async()=>(await app.plugins.plugins.marglow.store.load({path:'Smoke.md',type:'markdown'})).note.entries[0].annotation.style==='highlight');
+  assert.equal(await page.evaluate(async()=>(await app.plugins.plugins.marglow.store.load({path:'Smoke.md',type:'markdown'})).note.entries[0].annotation.id),'ann-mobile-toggle');
+  console.log('PASS Mobile toolbar recolors and switches the selected annotation style without changing its ID');
   await page.getByRole('button',{name:/^Reading notes/}).click();
   await mobileSidebar.waitFor({state:'visible'});
+  const readingPanel = page.locator('.marglow-comments-view:visible');
+  assert.equal(await readingPanel.locator('.marglow-comment-card .marglow-record-actions').evaluate(el=>getComputedStyle(el).opacity),'1');
+  assert.equal(await readingPanel.locator('.marglow-comment-card .marglow-record-actions').evaluate(el=>getComputedStyle(el).pointerEvents),'auto');
+  await readingPanel.getByRole('button',{name:'Add thought',exact:true}).click();
+  const thoughtInput = readingPanel.getByRole('textbox',{name:'Whole-material thought',exact:true});
+  await thoughtInput.fill('A mobile whole-material thought.\n\nAnother paragraph.');
+  await page.setViewportSize({width:402,height:560});
+  const saveThought = readingPanel.getByRole('button',{name:'Save',exact:true});
+  await saveThought.scrollIntoViewIfNeeded();
+  const controlsBox = await saveThought.boundingBox();
+  assert.ok(controlsBox.height>=44 && controlsBox.y>=0 && controlsBox.y+controlsBox.height<=560);
+  await saveThought.click();
+  await page.waitForFunction(async()=> (await app.plugins.plugins.marglow.store.load({path:'Smoke.md',type:'markdown'})).note.thoughts.length===1);
+  await page.waitForFunction(()=>!!document.querySelector('.marglow-thought-text')?.textContent.includes('A mobile whole-material thought.'));
+  assert.equal(await mobileSidebar.isVisible(),true);
+  assert.equal(await page.locator('body > .marglow-composer').count(),0);
+  await page.setViewportSize({width:402,height:874});
+  const beforeCancel = await page.evaluate(async()=> app.vault.read(app.vault.getFileByPath('_marglow/Smoke.md.annotations.md')));
+  await readingPanel.getByRole('button',{name:'Add thought',exact:true}).click();
+  await thoughtInput.fill('Canceled mobile thought.');
+  await readingPanel.getByRole('button',{name:'Cancel',exact:true}).click();
+  assert.equal(await page.evaluate(async()=>app.vault.read(app.vault.getFileByPath('_marglow/Smoke.md.annotations.md'))),beforeCancel);
+  assert.equal(await mobileSidebar.isVisible(),true);
+  await page.evaluate(()=>{
+    const write=navigator.clipboard.writeText.bind(navigator.clipboard);
+    navigator.clipboard.writeText=async text=>{await write(text);window.marglowCopiedReference=text;};
+  });
+  await readingPanel.locator('.marglow-thought-card').getByRole('button',{name:'Copy reference',exact:true}).click();
+  await page.waitForFunction(()=>window.marglowCopiedReference?.includes('#^thought-'));
+  assert.equal(await mobileSidebar.isVisible(),true);
+  await readingPanel.getByRole('combobox',{name:'Reading status',exact:true}).selectOption('read');
+  await page.waitForFunction(async()=>(await app.plugins.plugins.marglow.store.load({path:'Smoke.md',type:'markdown'})).note.status==='read');
+  console.log('PASS Whole-material thought save/cancel/copy and optional status retain the native drawer; save is reachable at a reduced viewport');
+  await page.evaluate(async()=>{
+    const core=app.internalPlugins, bases=core.getPluginById('bases');
+    if(!bases?.enabled){
+      if(typeof core.enablePlugin==='function')await core.enablePlugin('bases');
+      else if(typeof bases?.enable==='function')await bases.enable();
+      else throw new Error('Cannot enable the Bases fixture: '+Object.getOwnPropertyNames(Object.getPrototypeOf(core)).join(','));
+    }
+    app.commands.executeCommandById('marglow:create-reading-home');
+  });
+  await page.getByRole('textbox',{name:'Reading home path',exact:true}).fill('Mobile reading home.md');
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button',{name:'Create',exact:true}).click();
+  await page.waitForFunction(()=>!!app.vault.getFileByPath('Mobile reading home.md'));
+  await page.waitForFunction(()=>!!document.querySelector('.workspace-leaf.mod-active .bases-view'));
+  await page.waitForFunction(()=>{const text=document.querySelector('.workspace-leaf.mod-active .bases-view')?.textContent??'';return text.includes('Smoke')&&text.includes('read');});
+  const baseText=await page.locator('.workspace-leaf.mod-active .bases-view').textContent();
+  assert.ok(baseText.includes('Smoke') && baseText.includes('read'),baseText);
+  assert.equal(await page.evaluate(async()=>app.vault.read(app.vault.getFileByPath('Smoke.md'))),markdown);
+  console.log('PASS Optional Bases reading home renders the actual reading note and status in Obsidian 1.13.7');
+  await page.evaluate(async()=>{
+    app.workspace.rightSplit.collapse();
+    await app.workspace.getMostRecentLeaf().openFile(app.vault.getFileByPath('Smoke.md'),{state:{mode:'preview'}});
+  });
+  await page.waitForSelector('.marglow-file-tools:visible');
+  await page.locator('.marglow-file-tools:visible').getByRole('button',{name:/^Reading notes/}).click();
+  await page.waitForFunction(()=>document.querySelector('.marglow-reading-header > strong')?.textContent==='Smoke');
+  await readingPanel.locator('.marglow-thought-card').filter({hasText:'A mobile whole-material thought.'}).waitFor();
+  await page.waitForFunction(()=>document.querySelectorAll('.notice').length===0,undefined,{timeout:15000});
+  await page.waitForFunction(()=>{const panel=document.querySelector('.marglow-comments-view');const box=panel?.getBoundingClientRect();return box && box.left>=0 && box.right<=innerWidth && box.width>250;});
   console.log('PASS Native mobile drawer keeps inline editing visible and uses popup while closed');
   console.log('PASS Native mobile emulation, reachable toolbar, scroll stability and sidebar:',await page.title());
 
   await page.screenshot({path:`${output}/mobile-emulation.png`});
-  await writeFile(`${output}/mobile-report.json`,JSON.stringify({title:await page.title(),mobileEmulation:true,physicalIOS:false,position},null,2));
+  await writeFile(`${output}/mobile-report.json`,JSON.stringify({title:await page.title(),mobileEmulation:true,physicalIOS:false,position,readingNotesChecks:['selected annotation recolor/style preserve IDs','whole-material thought save/cancel','native clipboard reference','explicit reading status','drawer stays visible','44px save control at reduced viewport','native Bases reading home with actual note/status']},null,2));
   if (process.env.OBSIDIAN_TEST_PDF && process.env.OBSIDIAN_TEST_NOTE) {
     const noteBefore=await readFile(`${vault}/_marglow/Reference.pdf.annotations.md`,'utf8');
     await page.evaluate(async()=>{
@@ -188,6 +259,6 @@ try {
   }
   console.log('Mobile artifacts:',output);
  } catch(error) {
-  if(page){console.log(await page.evaluate(()=>({mobile:app.isMobile,loaded:!!app.plugins.plugins.marglow,views:[...app.workspace.getLeavesOfType('markdown'),...app.workspace.getLeavesOfType('pdf')].map(l=>({path:l.view.file?.path,type:l.view.getViewType()})),tools:document.querySelectorAll('.marglow-file-tools').length,ready:app.workspace.layoutReady})));await page.screenshot({path:`${output}/mobile-failure.png`});}
+  if(page){console.log(await page.evaluate(()=>({mobile:app.isMobile,loaded:!!app.plugins.plugins.marglow,views:[...app.workspace.getLeavesOfType('markdown'),...app.workspace.getLeavesOfType('pdf')].map(l=>({path:l.view.file?.path,type:l.view.getViewType()})),tools:document.querySelectorAll('.marglow-file-tools').length,ready:app.workspace.layoutReady,drawerCollapsed:app.workspace.rightSplit.collapsed,panel:document.querySelector('.marglow-comments-view')?.textContent,panelBounds:document.querySelector('.marglow-comments-view')?.getBoundingClientRect().toJSON()})));await page.screenshot({path:`${output}/mobile-failure.png`});}
   console.log('Mobile artifacts:',output);throw error;
 }finally{if(browser)await browser.close();child.kill('SIGTERM');}

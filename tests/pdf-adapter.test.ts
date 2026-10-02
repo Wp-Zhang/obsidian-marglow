@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PdfAdapter, rectFromPdf, rectToPdf } from "../src/pdf-adapter";
+import { PdfAdapter, pdfTextRect, rectFromPdf, rectToPdf } from "../src/pdf-adapter";
 import { annotation } from "./helpers";
 
 afterEach(() => document.body.replaceChildren());
@@ -46,6 +46,33 @@ function select(pages: ReturnType<typeof fixture>["pages"], first: number, last:
 }
 
 describe("PDF selection and geometry", () => {
+  it("clips inflated font bounds to the PDF run while retaining partial-selection width", () => {
+    const { pages } = fixture(), span = pages[0]!.div.querySelector('span')!;
+    vi.spyOn(span, 'getBoundingClientRect').mockReturnValue(new DOMRect(10, 112, 100, 10));
+    const range = document.createRange(); range.setStart(span.firstChild!, 2); range.setEnd(span.firstChild!, 6);
+    expect(pdfTextRect(range).toJSON()).toEqual(new DOMRect(20, 112, 50, 10).toJSON());
+  });
+
+  it("clips the font-thickness axis on quarter-turn text without expanding the selected length", () => {
+    const { pages } = fixture(), span = pages[0]!.div.querySelector('span')!;
+    vi.spyOn(span, 'getBoundingClientRect').mockReturnValue(new DOMRect(22, 100, 10, 100));
+    const range = document.createRange(); range.selectNodeContents(span);
+    vi.spyOn(range, 'getBoundingClientRect').mockReturnValue(new DOMRect(20, 120, 15, 30));
+    expect(pdfTextRect(range).toJSON()).toEqual(new DOMRect(22, 120, 10, 30).toJSON());
+  });
+
+  it("keeps exact-selection reuse for an older inflated anchor without changing its stored geometry", () => {
+    const { pages, adapter } = fixture(), span = pages[0]!.div.querySelector('span')!;
+    vi.spyOn(span, 'getBoundingClientRect').mockReturnValue(new DOMRect(20, 112, 50, 10));
+    const captured = adapter.capture(select(pages, 1, 1))!;
+    const entry = { ...annotation(), quote: captured.quote, anchor: structuredClone(captured.anchor) };
+    if (entry.anchor.kind !== 'pdf') throw new Error('Expected PDF');
+    entry.anchor.segments[0]!.rects = [[10, 75, 60, 90]];
+    const before = JSON.stringify(entry.anchor);
+    expect(adapter.matches(entry, captured)).toBe(true);
+    expect(JSON.stringify(entry.anchor)).toBe(before);
+  });
+
   it("displays a unique same-page quote from current text geometry without rewriting a bad saved anchor", () => {
     const { adapter, pages } = fixture();
     const captured = adapter.capture(select(pages, 1, 1))!;
@@ -66,6 +93,19 @@ describe("PDF selection and geometry", () => {
     captured.anchor.segments[0]!.rects = [[0, 0, 100, 100]];
     const located = adapter.locate({ ...annotation(), quote: captured.quote, anchor: captured.anchor })!;
     expect(located[0]!.width).toBe(100);
+  });
+
+  it("reuses an ambiguous legacy quote at the same geometry but rejects its adjacent repeated occurrence", () => {
+    const {adapter,pages}=fixture(),span=pages[0]!.div.querySelector('span')!;
+    vi.spyOn(span,'getBoundingClientRect').mockReturnValue(new DOMRect(20,112,50,10));
+    const captured=adapter.capture(select(pages,1,1))!;
+    const layer=pages[0]!.div.querySelector('.textLayer')!;layer.append(document.createElement('br'),span.cloneNode(true));
+    const entry={...annotation(),quote:captured.quote,anchor:structuredClone(captured.anchor)};
+    if(entry.anchor.kind!=='pdf'||captured.anchor.kind!=='pdf')throw new Error('Expected PDF');
+    entry.anchor.segments[0]!.rects=[[10,75,60,90]];
+    expect(adapter.matches(entry,captured)).toBe(true);
+    captured.anchor.segments[0]!.rects=[[10,53,60,63]];
+    expect(adapter.matches(entry,captured)).toBe(false);
   });
   it("round-trips page coordinates at a different display scale and page origin", () => {
     const viewport = { width: 100, height: 200, convertToPdfPoint: (x: number, y: number): [number, number] => [x, 200 - y], convertToViewportRectangle: (rect: number[]) => [rect[0]!, 200 - rect[1]!, rect[2]!, 200 - rect[3]!] };

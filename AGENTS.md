@@ -1,6 +1,16 @@
 # Marglow Development Guidelines
 
-Marglow is an Obsidian plugin for highlighting and commenting on Markdown and PDF documents. The project has an initial development build; distinguish implemented behavior, automated checks, and remaining device verification.
+Marglow is an Obsidian plugin for reading, highlighting, and commenting on Markdown and PDF documents. The 0.3.0 beta adds editable reading notes and cross-note reuse; distinguish implemented behavior, automated checks, and remaining device verification.
+
+## Long-Term Reading Direction
+
+Marglow serves a long-term reading workflow: collect material with little preparation, record reactions while reading, revisit earlier thinking, and develop ideas across sources in ordinary Obsidian notes. Each companion Markdown file should serve as the material's canonical reading note, containing free writing, quotations, and comments.
+
+Reading-note bodies must remain editable in the native editor. Keep anchor metadata in a separate end section of the same Markdown file, with per-record local updates and no duplicated content store. Preserve existing quotation block IDs and stable comment block IDs for multi-paragraph reuse. Format upgrades require explicit previews and verified recovery backups, never conversion on load. The 0.3.0 build implements these behaviors, creation without annotations, dated whole-material thoughts, reference copying, and an optional reading home.
+
+Keep titles, reading status, and topic links optional; never infer completion or reading dates from opening files, annotations, or file modification times. Preserve existing notes and IDs without rewriting them on load. Missing body blocks or metadata must not be interpreted as deletion. Inbox capture and cross-source synthesis remain ordinary Obsidian notes; avoid building a separate reading database or dashboard.
+
+Complete design proposals remain under ignored `dev/`. README feature lists and verification claims must continue to describe shipped behavior.
 
 ## Core Design Principles
 
@@ -17,14 +27,17 @@ Marglow is an Obsidian plugin for highlighting and commenting on Markdown and PD
 
 - Ship on **Mac and iOS** first. Windows is a later extension.
 - Support Markdown **Reading view** and text-selectable PDFs, including cross-page selections. Markdown editing views and OCR are outside the MVP.
-- A single annotation consists of a background highlight or underline and an optional comment. Treat styles as independent categories; exact-selection reuse applies within a category. Older entries without a style remain background highlights. Adding or removing a comment keeps the annotation and block IDs stable; removing a comment keeps the highlight.
+- A single annotation consists of a background highlight or underline and an optional comment. Treat styles as independent categories; exact-selection reuse applies within a category. Older entries without a style remain background highlights. Changing a selected annotation's style keeps its IDs and comment; if the same range already has the target style, retain both entries and ask the user to select the existing one. Adding or removing a comment keeps the annotation and block IDs stable; removing a comment keeps the highlight.
 - Reuse an annotation for the exact same source selection. Allow partially overlapping annotations and let users choose which one to edit.
 - Save comments when users click or tap outside the composer. Provide visible save and cancel controls on iOS; support `Cmd + Enter` and `Esc` on Mac. Keep unsaved input when persistence fails.
-- Reflect direct comment edits in the companion note. Deleting a complete annotation entry removes its highlight; clearing only its comment preserves the highlight.
+- Floating comment editors can be dragged by their heading without saving or losing input; viewport changes keep them reachable. Keep inline editors in their cards. Commented marks have a small indicator and a read-only mouse-hover preview. Native source text selection takes precedence over annotation paint; cards without comments offer Add comment without empty placeholders.
+- Color/style changes inside a floating window save immediately and keep that window, its position, and the unsaved comment draft open. Advance subsequent writes from the exact committed entry snapshot; external edits must still reject stale writes. Keep the sidebar compact, with accessible icon actions, a small status control, and no explanatory paragraph in the empty Thoughts section.
+- Place Add comment, copy, and delete together as annotation-footer icons. Reveal the group on card hover or keyboard-visible focus, not simply because the annotation is selected. Keep the actions available on touch devices and preserve footer geometry when showing/hiding them.
+- Reflect direct comment edits in the companion note. Deleting a complete annotation entry removes its highlight; clearing only its comment preserves the highlight. In format 2, deleting readable blocks while leaving metadata is an incomplete record: preserve it, pause unsafe writes, and offer explicit repair/removal. Format 1 keeps its complete-entry boundary rules.
 - Preserve unlocated annotations and support manual reassociation without changing their IDs. Do not guess an ambiguous location.
 - Distinguish selected annotations from hovered and idle annotations. Keep the per-document Comments sidebar linked to Markdown/PDF highlights, with safe navigation, inline card editing, and retained unlocated entries. Use a native Obsidian right-sidebar view; let the host manage docking and mobile drawers instead of placing an overlay inside the document.
 - Let users toggle the Comments sidebar explicitly with Reading notes. Clicking an existing annotation must not open the sidebar: use floating tools while it is hidden, or select and reveal its card without a popup while it is visible. Inline comment editing must not hide the mobile drawer. Preserve overlapping-entry choice and color editing in both modes.
-- Use stable native block references in the companion reading note. Dedicated Copy link and Copy quote actions remain future work.
+- Use stable native block references in the companion reading note. Copy reference includes the source, quotation, and nonempty comment as native embeds; thoughts have their own block reference. Plain-text quote copying and custom copy formats remain later work. Embeds update with the source reading note and are not historical snapshots.
 
 ## Architecture and Data Integrity
 

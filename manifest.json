@@ -1,9 +1,9 @@
 {
   "id": "marglow",
   "name": "Marglow",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "minAppVersion": "1.8.10",
-  "description": "Highlight and comment on Markdown and PDF, with editable local Markdown reading notes.",
+  "description": "Highlight Markdown and PDF, record reading thoughts, and reuse editable local notes with native references.",
   "author": "Weipeng Zhang",
   "authorUrl": "https://github.com/Wp-Zhang",
   "isDesktopOnly": false

@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.3.0 — Public beta (2026-10-02)
+
+Reading notes now keep editable quotations, comments, and whole-material thoughts in a clean Markdown body, with anchor data at the end of the same file. Native references let you reuse this material across notes.
+
+**Format compatibility:** Install Marglow 0.3.0 or later on every reading device before explicitly upgrading a note to format 2. Legacy notes are never upgraded automatically; conversion provides a preview and a verified original backup. Physical iOS acceptance of this beta remains pending.
+
+- Move Add comment into the annotation footer as an icon and reveal all annotation actions together on hover or keyboard focus; keep touch actions visible without reserving an extra text row.
+- Keep floating annotation windows open after color/style changes, retain their dragged position and unsaved comment draft, and advance each save from the committed snapshot for safe repeated edits.
+- Simplify the reading sidebar with an icon for opening the note, compact status control, Thoughts/Annotations counts, and timestamp footers with accessible copy/delete icons. Remove the empty-thought explanation and redundant filename extensions/path text.
+- Let users drag floating comment editors by their heading, preserving drafts and keeping the window within the viewport; leave inline editors in their cards.
+- Size PDF highlights to text-layer run bounds, preserving partial selections, transformed geometry, and exact-selection reuse for legacy anchors.
+- Hide annotation paint during native source selection so additional partial annotations remain clear.
+- Show comment indicators and safe, multi-paragraph read-only previews on mouse hover.
+- Replace empty-comment placeholders with an explicit Add comment action in the sidebar.
+- Recolor and switch selected annotations between highlight and underline from the page or floating toolbar without changing IDs/comments; preserve independent same-range records when the target style is already present.
+- Keep reading-note bodies editable with quotations, comment callouts, thoughts, and stable IDs; move per-record anchor metadata to the end of the same Markdown file.
+- Create a reading note without annotations, and append dated whole-material thoughts without selecting source text.
+- Reuse the native sidebar and inline composer for thoughts and comments, including a reading-note context when the source is missing.
+- Copy native references containing the source, quotation, and multi-paragraph comment; add a reading-note editor context-menu action.
+- Continue reading and writing legacy format 1; explicitly upgrade with a cancelable preview, verified original `.v1.bak` backup, and preserved document/quotation IDs.
+- Pause unsafe writes when readable blocks or metadata are missing, and offer explicit missing-record cleanup.
+- Add optional reading status, display-title properties, and a user-created reading home with native search or optional Bases table views.
+- Preserve native sidebar hover/focus during unchanged refreshes, and keep canceled thought drafts from leaving empty cards or temporary highlights.
+- Let WebKit deliver synthesized touch clicks for Save and toolbar actions, retaining the selected passage before toolbar focus changes.
+- Validate the new format, local-update preservation, migration failures, native embeds, Mac integration, mobile emulation, and WebKit touch/input behavior. Physical iOS acceptance of this build remains pending.
+
 ## 0.2.5 — Public beta 6 (2026-10-01)
 
 - Make Reading notes toggle the native Comments sidebar without opening it automatically when an annotation is clicked.

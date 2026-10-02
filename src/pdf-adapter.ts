@@ -51,6 +51,52 @@ export function rectFromPdf(rect: Rect, box: DOMRect, viewport: PageViewport): D
     Math.abs(x2 - x1) * box.width / viewport.width, Math.abs(y2 - y1) * box.height / viewport.height);
 }
 
+/** PDF.js lays out each run in an em-height span. Browser Range boxes can include
+ * extra fallback-font ascent/descent; clip to that run without expanding a partial selection.
+ * Clipping both axes also handles quarter-turn pages and CSS/pinch transforms. */
+export function pdfTextRect(range: Range): DOMRect {
+  const rect = range.getBoundingClientRect();
+  const start = range.startContainer.nodeType === 1 ? range.startContainer as Element : range.startContainer.parentElement;
+  const span = start?.closest(".textLayer span");
+  const box = span?.getBoundingClientRect();
+  if (!box?.width || !box.height) return rect;
+  const left = Math.max(rect.left, box.left), top = Math.max(rect.top, box.top);
+  return new DOMRect(left, top, Math.max(0, Math.min(rect.right, box.right) - left), Math.max(0, Math.min(rect.bottom, box.bottom) - top));
+}
+
+function mergedPageRects(rects: Rect[]): Rect[] {
+  const result: Rect[] = [];
+  for (const rect of rects) {
+    let merged = [...rect] as Rect;
+    for (let i = result.length - 1; i >= 0; i--) {
+      const other = result[i]!;
+      if (Math.abs(merged[1] - other[1]) > 0.5 || Math.abs(merged[3] - other[3]) > 0.5 || merged[0] > other[2] + 0.5 || other[0] > merged[2] + 0.5) continue;
+      merged = [Math.min(merged[0], other[0]), Math.min(merged[1], other[1]), Math.max(merged[2], other[2]), Math.max(merged[3], other[3])];
+      result.splice(i, 1); i = result.length;
+    }
+    result.push(merged);
+  }
+  return result;
+}
+
+function samePageRects(first: Rect[], second: Rect[]): boolean {
+  const a = mergedPageRects(first), remaining = mergedPageRects(second);
+  if (a.length !== remaining.length) return false;
+  for (const rect of a) {
+    const match = remaining.findIndex(other => {
+      if (rect.every((value, i) => Math.abs(value - other[i]!) < 0.5)) return true;
+      // Legacy font bounds may be taller, but the selected horizontal extent and
+      // line center must still match. An adjacent repeated line cannot match.
+      const height = Math.min(rect[3] - rect[1], other[3] - other[1]);
+      return Math.abs(rect[0] - other[0]) < 0.5 && Math.abs(rect[2] - other[2]) < 0.5 &&
+        Math.abs((rect[1] + rect[3] - other[1] - other[3]) / 2) < height * 0.25 + 0.5;
+    });
+    if (match < 0) return false;
+    remaining.splice(match, 1);
+  }
+  return true;
+}
+
 export class PdfAdapter implements DocumentAdapter {
   private navigation = 0;
   private hosts = new WeakMap<DOMRect, HTMLElement>();
@@ -80,20 +126,9 @@ export class PdfAdapter implements DocumentAdapter {
       const quote = normalizeText(fragment.textContent ?? "");
       const box = pageBox(page);
       const rects: Rect[] = [];
-      // Text-node ranges avoid highlighting both a span's line box and its glyph box.
-      const walker = layer.ownerDocument.createTreeWalker(layer, 4);
-      const selectedRects: DOMRect[] = [];
-      let node: Node | null;
-      while ((node = walker.nextNode())) {
-        if (!part.intersectsNode(node)) continue;
-        const textRange = layer.ownerDocument.createRange();
-        textRange.selectNodeContents(node);
-        if (part.compareBoundaryPoints(Range.START_TO_START, textRange) > 0) textRange.setStart(part.startContainer, part.startOffset);
-        if (part.compareBoundaryPoints(Range.END_TO_END, textRange) < 0) textRange.setEnd(part.endContainer, part.endOffset);
-        // PDF.js text nodes are single-line runs. Bounding rectangles consistently
-        // include nested viewer transforms across engines, unlike fragment rects.
-        selectedRects.push(textRange.getBoundingClientRect());
-      }
+      const index = new TextIndex(layer, true), offsets = index.offsets(part);
+      if (!offsets || normalizeText(index.text.slice(offsets.start, offsets.end)) !== quote) throw new Error("The full PDF selection could not be captured. No partial annotation was saved.");
+      const selectedRects = index.rects(offsets.start, offsets.end, true, pdfTextRect);
       for (const rect of selectedRects) {
         if (rect.width <= 0 || rect.height <= 0) continue;
         const clipped = new DOMRect(Math.max(rect.left, box.left), Math.max(rect.top, box.top),
@@ -127,7 +162,7 @@ export class PdfAdapter implements DocumentAdapter {
         const index = new TextIndex(layer, true), quote = normalizeText(segment.quote);
         const start = index.text.indexOf(quote);
         if (start >= 0 && index.text.indexOf(quote, start + 1) === -1) {
-          const measured = index.rects(start, start + quote.length, true);
+          const measured = index.rects(start, start + quote.length, true, pdfTextRect);
           if (measured.length) {
             for (const rect of measured) { this.hosts.set(rect, page.div); rects.push(rect); }
             continue;
@@ -169,7 +204,20 @@ export class PdfAdapter implements DocumentAdapter {
     const a = annotation.anchor, b = selection.anchor;
     return a.sourceFingerprint === b.sourceFingerprint && a.segments.length === b.segments.length && a.segments.every((segment, i) => {
       const other = b.segments[i]!;
-      return segment.page === other.page && segment.rects.length === other.rects.length && segment.rects.every((rect, j) => rect.every((value, k) => Math.abs(value - other.rects[j]![k]!) < 0.5));
+      if (segment.page !== other.page) return false;
+      // Compare current measured geometry when the page quote is unique. This
+      // preserves exact-selection reuse for older, over-tall saved rectangles.
+      const page = viewerFromView(this.view)?.getPageView(segment.page - 1);
+      const layer = page?.div.querySelector<HTMLElement>(".textLayer");
+      let rects = segment.rects;
+      if (page && layer) {
+        const index = new TextIndex(layer, true), quote = normalizeText(segment.quote), start = index.text.indexOf(quote);
+        if (start >= 0 && index.text.indexOf(quote, start + 1) === -1) {
+          const measured = index.rects(start, start + quote.length, true, pdfTextRect);
+          if (measured.length) rects = measured.map(rect => rectToPdf(rect, pageBox(page), page.viewport));
+        }
+      }
+      return samePageRects(rects, other.rects);
     });
   }
 }

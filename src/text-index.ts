@@ -62,7 +62,7 @@ export class TextIndex {
     return end > start ? { start, end } : null;
   }
 
-  rects(start: number, end: number, singleLine = false): DOMRect[] {
+  rects(start: number, end: number, singleLine = false, measure?: (range: Range) => DOMRect): DOMRect[] {
     const spans = new Map<Text, { start: number; end: number }>();
     for (const point of this.points.slice(start, end)) {
       if (!point) continue;
@@ -76,7 +76,7 @@ export class TextIndex {
       range.setStart(node, span.start); range.setEnd(node, span.end);
       // Whole-element ranges return both inline boxes and glyph boxes. Text-node
       // ranges only contribute selected text, including partial styled runs.
-      for (const rect of singleLine ? [range.getBoundingClientRect()] : range.getClientRects()) {
+      for (const rect of measure ? [measure(range)] : singleLine ? [range.getBoundingClientRect()] : range.getClientRects()) {
         if (rect.width <= 0 || rect.height <= 0) continue;
         let merged = new DOMRect(rect.left, rect.top, rect.width, rect.height);
         for (let index = rects.length - 1; index >= 0; index--) {
